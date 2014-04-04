@@ -100,7 +100,7 @@ Below are some simple examples for how to use the repository.
 
 ## Navigating the Repo
 ### cacheman
-The cach mana
+Package wrapper for the repo.
 
 ### tests
 All unit tests for the repo.
