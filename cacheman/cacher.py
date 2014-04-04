@@ -3,23 +3,27 @@ import pickle
 import tempfile
 from collections import defaultdict
 
-TMP_DIR = tempfile.gettempdir()
-CACHE_DIR = os.path.join(TMP_DIR, 'cacheman')
 DEFAULT_CACHEMAN = 'general_cacher'
 
-def get_cache_manager(manager_name=DEFAULT_CACHEMAN):
+def get_cache_manager(manager_name=None):
+    if manager_name is None:
+        # Don't grab this from default args in case someone changes DEFAULT_CACHEMAN
+        manager_name = DEFAULT_CACHEMAN
+    if manager_name not in get_cache_manager.managers:
+        # Need name argument, so can't use defaultdict easily
+        get_cache_manager.managers[manager_name] = CacheManager(manager_name)
     return get_cache_manager.managers[manager_name]
-get_cache_manager.managers = defaultdict(lambda: CacheManager())
+get_cache_manager.managers = {}
 
-def generate_pickle_path(cache_name):
-    return os.path.join(CACHE_DIR, cache_name + '.pkl')
+def generate_pickle_path(cache_dir, cache_name):
+    return os.path.join(cache_dir, cache_name + '.pkl')
 
-def pickle_loader(cache_name):
+def pickle_loader(cache_dir, cache_name):
     '''
     Default loader for any cache, this function loads from a pickle file based on cache name.
     '''
     try:
-        with open(generate_pickle_path(cache_name), 'rb') as pkl_file:
+        with open(generate_pickle_path(cache_dir, cache_name), 'rb') as pkl_file:
             contents = pickle.load(pkl_file)
     except (IOError, EOFError, AttributeError):
         return None
@@ -33,19 +37,18 @@ def ensure_directory(dirname):
             if not os.path.isdir(dirname):
                 raise IOError('Unable to build cache directories for %s cache' % cache_name)
 
-def pickle_saver(cache_name, contents):
+def pickle_saver(cache_dir, cache_name, contents):
     try:
-        pname = generate_pickle_path(cache_name)
-        ensure_directory(os.path.dirname(pname))
-        with open(pname, 'wb') as pkl_file:
+        ensure_directory(cache_dir)
+        with open(generate_pickle_path(cache_dir, cache_name), 'wb') as pkl_file:
             pickle.dump(contents, pkl_file)
     except (IOError, EOFError):
         # TODO log real exception
         raise IOError('Unable to save %s cache' % cache_name)
 
-def pickle_deleter(cache_name):
+def pickle_deleter(cache_dir, cache_name):
     try:
-        os.remove(generate_pickle_path(cache_name))
+        os.remove(generate_pickle_path(cache_dir, cache_name))
     except OSError:
         pass
 
@@ -57,15 +60,26 @@ def mem_saver(cache_name=None, contents=None):
 disabled_deleter = mem_saver
 
 class CacheManager():
-    def __init__(self):
+    def manager_pickle_loader(self, cache_name):
+        return pickle_loader(self.cache_dir, cache_name)
+
+    def manager_pickle_saver(self, cache_name, contents):
+        return pickle_saver(self.cache_dir, cache_name, contents)
+
+    def manager_pickle_deleter(self, cache_name):
+        return pickle_deleter(self.cache_dir, cache_name)
+
+    def __init__(self, manager_name):
+        self.name = manager_name
+        self.cache_dir = os.path.join(tempfile.gettempdir(), self.name)
         self.cache_by_name = {}
-        self.cache_loaders = defaultdict(lambda: pickle_loader)
-        self.cache_savers = defaultdict(lambda: pickle_saver)
+        self.cache_loaders = defaultdict(lambda: self.manager_pickle_loader)
+        self.cache_savers = defaultdict(lambda: self.manager_pickle_saver)
         self.cache_builders = defaultdict(lambda: mem_loader)
         self.cache_pre_processor = {}
         self.cache_post_processor = {}
         self.cache_validator = {}
-        self.cache_deleter = defaultdict(lambda: pickle_deleter)
+        self.cache_deleter = defaultdict(lambda: self.manager_pickle_deleter)
         self.cache_rebuilds = {}
         self.cache_dependents = defaultdict(set)
         self.registered = set()
@@ -74,7 +88,7 @@ class CacheManager():
                 self.cache_validator, self.cache_deleter, self.cache_rebuilds, self.cache_dependents]
 
     def __del__(self):
-        pass # Python cleanup will kill this before it finishes sometimes...
+        pass # Python cleanup will kill this before it finishes destroy caches...
         # try:
         #     self.save_all_cache_contents()
         # except TypeError:
@@ -125,6 +139,13 @@ class CacheManager():
             cache = self._build_cache(cache_name, builder, saver, pre_process, post_process)
         return loaded, cache
 
+    def set_cache_directory(self, dirname):
+        self.cache_dir = os.path.abspath(dirname)
+        return self.cache_dir
+
+    def get_cache_directory(self):
+        return self.cache_dir
+
     def retrieve_cache(self, cache_name, clear_cache=False):
         '''
         Loads or builds a cache using any registered post_process, custom_builder, and validator hooks.
@@ -164,9 +185,8 @@ class CacheManager():
 
     def register_cache(self, cache_name, contents=None, persistent=True):
         self.registered.add(cache_name)
-        if contents is None:
-            contents = {}
-        self.cache_by_name[cache_name] = contents
+        if contents is not None:
+            self.cache_by_name[cache_name] = contents
         if not persistent:
             # Replace default pickle loader/saver/deleter
             self.register_loader(cache_name, mem_loader)
@@ -203,6 +223,8 @@ class CacheManager():
         self.cache_validator[cache_name] = validator
 
     def register_dependent_cache(self, cache_name, dependent_cache):
+        self.registered.add(cache_name)
+        self.registered.add(dependent_cache)
         self.cache_dependents[cache_name].add(dependent_cache)
 
     def _dependents(self, cache_name, apply_to_dependents=True, seen_dependents=None):

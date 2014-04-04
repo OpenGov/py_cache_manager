@@ -17,18 +17,17 @@ class CacheManagerTest(unittest.TestCase):
             os.remove(f)
 
     def setUp(self):
-        self.old_cache_dir = cacher.CACHE_DIR
-        cacher.CACHE_DIR = CacheManagerTest.TEST_CACHE_DIR
-        self.manager = cacher.CacheManager()
+        self.cache_dir = CacheManagerTest.TEST_CACHE_DIR
+        self.manager = cacher.CacheManager('tester')
+        self.manager.set_cache_directory(self.cache_dir)
 
     def tearDown(self):
         self.manager.invalidate_and_delete_all_saved_contents()
         self.manager.deregister_all_caches()
         del self.manager
-        cacher.CACHE_DIR = self.old_cache_dir
 
     def check_cache_gone(self, cache_name):
-        self.assertFalse(os.path.isfile(cacher.generate_pickle_path(cache_name)))
+        self.assertFalse(os.path.isfile(cacher.generate_pickle_path(self.cache_dir, cache_name)))
         return cache_name
 
     def register_foo_baz_bar(self, check_file=True):
@@ -52,7 +51,7 @@ class CacheManagerTest(unittest.TestCase):
         self.manager.save_cache_contents(cache_name)
 
         cache = self.manager.reload_cache(cache_name)
-        self.assertTrue(os.path.isfile(cacher.generate_pickle_path(cache_name)))
+        self.assertTrue(os.path.isfile(cacher.generate_pickle_path(self.cache_dir, cache_name)))
         self.assertDictEqual(cache, { 'foo': 'bar' })
 
     def test_content_invalidation(self):
@@ -221,7 +220,7 @@ class CacheManagerTest(unittest.TestCase):
         self.deleted_cache = {}
         def deleter(cache_name):
             self.deleted_cache = self.manager.retrieve_cache(cache_name)
-            cacher.pickle_deleter(cache_name)
+            cacher.pickle_deleter(self.cache_dir, cache_name)
 
         self.manager.register_deleter(cache_name, deleter)
         cache = self.manager.retrieve_cache(cache_name)
