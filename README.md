@@ -25,6 +25,7 @@ None -- cacheman is a standalone module using only built-in libraries.
 * Dependent invalidation
 
 ## How to use
+Below are some simple examples for how to use the repository.
 
 ### Setting up a simple persistent cache
     from cacheman import cacher
@@ -111,4 +112,4 @@ All unit tests for the repo.
 ## Author
 Author(s): Matthew Seal
 
-#### (C) Copyright 2013, [Opengov](http://opengov.com)
+&copy; Copyright 2013, [OpenGov](http://opengov.com)
