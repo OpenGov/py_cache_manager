@@ -1,6 +1,7 @@
 import os
 import pickle
 import tempfile
+import shutil
 from collections import defaultdict
 
 DEFAULT_CACHEMAN = 'general_cacher'
@@ -40,8 +41,10 @@ def ensure_directory(dirname):
 def pickle_saver(cache_dir, cache_name, contents):
     try:
         ensure_directory(cache_dir)
-        with open(generate_pickle_path(cache_dir, cache_name), 'wb') as pkl_file:
+        cache_path = generate_pickle_path(cache_dir, cache_name)
+        with open(cache_path + '.tmp', 'wb') as pkl_file:
             pickle.dump(contents, pkl_file)
+        shutil.move(cache_path + '.tmp', cache_path)
     except (IOError, EOFError):
         # TODO log real exception
         raise IOError('Unable to save %s cache' % cache_name)

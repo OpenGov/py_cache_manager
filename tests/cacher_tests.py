@@ -26,9 +26,15 @@ class CacheManagerTest(unittest.TestCase):
         self.manager.deregister_all_caches()
         del self.manager
 
-    def check_cache_gone(self, cache_name):
-        self.assertFalse(os.path.isfile(cacher.generate_pickle_path(self.cache_dir, cache_name)))
+    def check_cache(self, cache_name, presence):
+        assertion = self.assertTrue if presence else self.assertFalse
+        cache_path = cacher.generate_pickle_path(self.cache_dir, cache_name)
+        assertion(os.path.isfile(cache_path))
+        self.assertFalse(os.path.isfile(cache_path + '.tmp'))
         return cache_name
+
+    def check_cache_gone(self, cache_name):
+        return self.check_cache(cache_name, False)
 
     def register_foo_baz_bar(self, check_file=True):
         cache_one_name = self.check_cache_gone('foo_bar') if check_file else 'foo_bar'
@@ -51,8 +57,25 @@ class CacheManagerTest(unittest.TestCase):
         self.manager.save_cache_contents(cache_name)
 
         cache = self.manager.reload_cache(cache_name)
-        self.assertTrue(os.path.isfile(cacher.generate_pickle_path(self.cache_dir, cache_name)))
+        self.check_cache(cache_name, True)
         self.assertDictEqual(cache, { 'foo': 'bar' })
+
+    def test_default_saver_overwrite(self):
+        cache_name = self.check_cache_gone('no_registers')
+
+        cache = self.manager.retrieve_cache(cache_name)
+        cache['foo'] = 'bar'
+        self.manager.save_cache_contents(cache_name)
+        self.check_cache(cache_name, True)
+        self.manager.save_cache_contents(cache_name)
+        self.check_cache(cache_name, True)
+
+        cache['foo'] = 'baz'
+        self.manager.save_cache_contents(cache_name)
+
+        cache = self.manager.reload_cache(cache_name)
+        self.check_cache(cache_name, True)
+        self.assertDictEqual(cache, { 'foo': 'baz' })
 
     def test_content_invalidation(self):
         cache_name = self.check_cache_gone('no_registers')
