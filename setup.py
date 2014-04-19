@@ -18,7 +18,8 @@ def readMD(fname):
     else:
         return read(fname)
 
-version = '1.0.0'
+version = '2.0.0'
+required = [req.strip() for req in read('requirements.txt').splitlines() if req.strip()]
 setup(
     name='CacheMan',
     version=version,
@@ -26,6 +27,7 @@ setup(
     author_email='mseal@opengov.us',
     description='A dependent cache manager',
     long_description=readMD('README.md'),
+    install_requires=required,
     license='New BSD',
     packages=['cacheman'],
     test_suite='tests',
