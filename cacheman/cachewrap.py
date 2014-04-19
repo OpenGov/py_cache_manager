@@ -2,7 +2,7 @@ from collections import MutableMapping
 from registers import *
 import cacher
 
-class CacheWrap(MutableMapping):
+class CacheWrap(MutableMapping, object):
     '''
     A class designed to immitate the contents it holds with a capability to reload,
     rebuild, destroy, or save it's contents without disrupting any references to
@@ -46,8 +46,11 @@ class CacheWrap(MutableMapping):
         '''
         for getter in ['__getattribute__', '__getattr__']:
             if hasattr(self.contents, getter):
-                return getattr(self.contents, getter)(name)
-        raise AttributeError("'{}' object has no attribute '{}'".format(self.contents.__class__.__name__, name))
+                try:
+                    return getattr(self.contents, getter)(name)
+                except AttributeError:
+                    pass
+        raise AttributeError("'{}' and '{}' objects have no attribute '{}'".format(self.__class__.__name__, self.contents.__class__.__name__, name))
 
     def _check_contents_present(self):
         if self.contents is None:
