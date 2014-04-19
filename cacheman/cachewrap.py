@@ -81,6 +81,12 @@ class CacheWrap(MutableMapping, object):
         self._check_contents_present()
         return self.contents.__len__()
 
+    def __str__(self):
+        return "{}<{}>".format(self.__class__.__name__, self.contents.__str__())
+
+    def __repr__(self):
+        return "{}<{}>".format(self.__class__.__name__, self.contents.__repr__())
+
     def _manager_pickle_loader(self, *ignored, **kw_ignored):
         return pickle_loader(self.manager.cache_directory, self.name)
 
