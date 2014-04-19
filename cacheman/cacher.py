@@ -3,7 +3,7 @@ import pickle
 import tempfile
 import shutil
 from collections import defaultdict
-import autosync
+import autosync as sync
 import cachewrap
 
 DEFAULT_CACHEMAN = 'general_cacher'
@@ -58,8 +58,8 @@ class CacheManager():
         elif not persistent:
             # Replace default pickle loader/saver/deleter
             cache = cachewrap.NonPersistentCache(cache_name, cache_manager=self, contents=contents)
-        # elif autosync:
-        #     cache = autosync.AutoSyncCache(cache_name, cache_manager=self, contents=contents)
+        elif autosync:
+            cache = sync.AutoSyncCache(cache_name, cache_manager=self, contents=contents)
         else:
             cache = cachewrap.PersistentCache(cache_name, cache_manager=self, contents=contents)
 
