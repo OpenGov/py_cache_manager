@@ -14,7 +14,7 @@ disk-based defaults.
 
 By default all caches will auto save when 10k change occur in 60 seconds, 10
 changes occur in 300 seconds (but after 60 seconds), or 1 change occurs within
-900 seconds (after 300 seconds). This behavior can be changed b instantiating
+900 seconds (after 300 seconds). This behavior can be changed by instantiating
 an AutoSyncCache from the autosync submodule.
 
 ## Dependencies
