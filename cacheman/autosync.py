@@ -60,18 +60,17 @@ class AutoSyncCache(PersistentCache):
                 time_count += self.time_counts[bucket]
                 if time_count >= check.count:
                     self.save()
-                    #self.clear_bucket_counts()
                     return True
                 bucket -= 1
         return False
 
     def track_edit(self, count=1, edit_time=None):
-        shift_time = self.time_shift_buckets()
+        self.time_shift_buckets()
         if edit_time is None:
-            edit_time = shift_time
+            edit_time = self.last_shift_time
 
         try:
-            self.time_counts[self.find_bucket(edit_time)] += 1
+            self.time_counts[self.find_bucket(edit_time)] += count
             self.check_save_conditions()
         except IndexError:
             pass # Edit is too far back or in the future, skip it
