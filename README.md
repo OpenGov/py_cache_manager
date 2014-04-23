@@ -123,6 +123,11 @@ All unit tests for the repo.
 * Google Style Guide
 * Object Oriented (with a few exceptions)
 
+## TODO
+V2.1
+* cPickle with fallback to pickle by default
+* Better argument checks
+
 ## Author
 Author(s): Matthew Seal
 
