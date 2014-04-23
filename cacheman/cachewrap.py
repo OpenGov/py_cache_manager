@@ -30,9 +30,12 @@ class CacheWrap(MutableMapping, object):
             self.load_or_build()
 
     def __del__(self):
-        self.save()
-        if self.name in self.manager.cache_by_name:
-            del self.manager.cache_by_name[self.name]
+        if not hasattr(self, 'delete_triggered'):
+            # Avoid infinite recursion if dependent objects trigger delete chains
+            self.delete_triggered = True
+            self.save()
+            if self.name in self.manager.cache_by_name:
+                del self.manager.cache_by_name[self.name]
 
     def __enter__(self):
         return self
