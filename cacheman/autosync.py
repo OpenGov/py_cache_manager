@@ -1,4 +1,4 @@
-from collections import MutableMapping, namedtuple, deque
+from collections import namedtuple, deque
 from datetime import datetime
 from cachewrap import PersistentCache
 
