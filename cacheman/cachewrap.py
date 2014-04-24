@@ -143,7 +143,6 @@ class CacheWrap(MutableMapping, object):
             for dependent in self._retrieve_dependent_caches(seen_caches):
                 dependent.load(apply_to_dependents, seen_caches)
 
-        self.contents = None
         if self.loader:
             self.contents = self.loader(self.name)
 
@@ -151,6 +150,8 @@ class CacheWrap(MutableMapping, object):
                 self.contents = None
             else:
                 self.contents = self._post_process(self.contents)
+        else:
+            self.contents = None
 
         return self.contents
 
