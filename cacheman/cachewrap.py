@@ -122,7 +122,7 @@ class CacheWrap(MutableMapping, object):
 
     def _post_process(self, contents):
         if self.post_processor:
-            self.post_processor(contents)
+            contents = self.post_processor(contents)
         return contents
 
     def _build(self):
