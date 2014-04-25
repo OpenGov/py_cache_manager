@@ -24,7 +24,8 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
     def test_self_registering_cache(self):
         for call_name in CacheWrap.CALLBACK_NAMES:
             cache_name = 'foo_' + call_name
-            cache = CacheWrap(cache_name, cache_manager=self.manager, **{ call_name: self.fake_registration })
+            cache = CacheWrap(cache_name, cache_manager=self.manager,
+                **{ call_name: self.fake_registration })
 
             registers = [reg for reg in CacheWrap.CALLBACK_NAMES if reg != call_name]
             self.assert_registrations_blank(cache, registers)
@@ -62,7 +63,8 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
         cache_name = self.check_cache_gone('content')
 
         # Pass a non-empty list as content
-        cache = PersistentCache(cache_name, cache_manager=self.manager, contents=[''], builder=lambda *args: [])
+        cache = PersistentCache(cache_name, cache_manager=self.manager, contents=[''],
+            builder=lambda *args: [])
         cache[0] = 'foo'
         cache.append('bar')
         cache.save()
@@ -89,7 +91,8 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
 
     def test_build_on_init(self):
         cache_name = self.check_cache_gone('built')
-        cache = NonPersistentCache(cache_name, cache_manager=self.manager, loader=None, builder=lambda *args: [])
+        cache = NonPersistentCache(cache_name, cache_manager=self.manager, loader=None,
+            builder=lambda *args: [])
         self.assertTrue(isinstance(cache.contents, list))
         self.assert_contents_equal(cache, [])
 
@@ -163,7 +166,8 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
 
     def test_load_or_build(self):
         cache_name = self.check_cache_gone('load_build')
-        cache = CacheWrap(cache_name, cache_manager=self.manager, loader=lambda *args: ['loaded'], builder=lambda *args: ['built'])
+        cache = CacheWrap(cache_name, cache_manager=self.manager, loader=lambda *args: ['loaded'],
+            builder=lambda *args: ['built'])
 
         self.assert_contents_equal(cache, ['loaded'])
         cache.load_or_build()
@@ -174,7 +178,8 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
 
     def test_validation(self):
         cache_name = self.check_cache_gone('validation')
-        cache = PersistentCache(cache_name, cache_manager=self.manager, contents={ 'foo': 'bar' }, validator=lambda *args: False, builder=lambda *args: ['built'])
+        cache = PersistentCache(cache_name, cache_manager=self.manager, contents={ 'foo': 'bar' },
+            validator=lambda *args: False, builder=lambda *args: ['built'])
         cache.save()
 
         cache.load_or_build() # Invalid load, force rebuild
@@ -215,6 +220,30 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
 
         parent_cache.invalidate_and_rebuild(True)
         self.assertDictEqual(dependent_cache.contents, {})
+
+    def test_pre_processor(self):
+        cache_name = self.check_cache_gone('validation')
+        cache = PersistentCache(cache_name, cache_manager=self.manager, contents={ 'foo': 'bar' },
+            pre_processor=lambda c: { 'foo2': c['foo'] })
+        self.assert_contents_equal(cache, { 'foo': 'bar' })
+        cache.save()
+        # Preprocessor should have applied to save, but not cache
+        self.assert_contents_equal(cache, { 'foo': 'bar' })
+
+        cache.load() # Load the preprocessor changes
+        self.assert_contents_equal(cache, { 'foo2': 'bar' })
+
+    def test_post_processor(self):
+        cache_name = self.check_cache_gone('validation')
+        cache = PersistentCache(cache_name, cache_manager=self.manager, contents={ 'foo': 'bar' },
+            post_processor=lambda c: { 'foo2': c['foo'] })
+        self.assert_contents_equal(cache, { 'foo': 'bar' })
+        cache.save()
+        # Postprocessor should not have applied to save or cache
+        self.assert_contents_equal(cache, { 'foo': 'bar' })
+
+        cache.load() # Load and apply postprocessor changes
+        self.assert_contents_equal(cache, { 'foo2': 'bar' })
 
 if __name__ == '__main__':
     unittest.main()

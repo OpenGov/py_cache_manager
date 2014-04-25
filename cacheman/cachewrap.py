@@ -90,14 +90,14 @@ class CacheWrap(MutableMapping, object):
     def __repr__(self):
         return "{}<{}>".format(self.__class__.__name__, self.contents.__repr__())
 
-    def _manager_pickle_loader(self, *ignored, **kw_ignored):
+    def _manager_pickle_loader(self, name):
         return pickle_loader(self.manager.cache_directory, self.name)
 
-    def _manager_pickle_saver(self, *ignored, **kw_ignored):
-        return pickle_saver(self.manager.cache_directory, self.name, self.contents)
+    def _manager_pickle_saver(self, name, contents):
+        return pickle_saver(self.manager.cache_directory, name, contents)
 
-    def _manager_pickle_deleter(self, *ignored, **kw_ignored):
-        return pickle_deleter(self.manager.cache_directory, self.name)
+    def _manager_pickle_deleter(self, name):
+        return pickle_deleter(self.manager.cache_directory, name)
 
     def _retrieve_dependent_caches(self, seen_dependents=None):
         for dependent in self.dependents:
