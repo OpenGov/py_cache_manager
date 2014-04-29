@@ -116,6 +116,12 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
         with PersistentCache(cache_name, cache_manager=self.manager) as cache:
             self.assertEqual(cache['foo'], 'bar')
 
+    def test_contains(self):
+        cache_name = self.check_cache_gone('contains')
+        cache = NonPersistentCache(cache_name, cache_manager=self.manager, contents={ 'foo': 'bar' })
+        self.assertTrue('foo' in cache)
+        self.assertFalse('foo2' in cache)
+
     def test_save_and_load(self):
         cache_name = self.check_cache_gone('save_load')
         cache = PersistentCache(cache_name, cache_manager=self.manager)

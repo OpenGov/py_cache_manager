@@ -45,6 +45,8 @@ class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
         cache.load() # Reload
         self.check_cache(cache_name, True)
         self.assertEqual(cache['foo'], 'bar')
+        self.assertTrue('foo' in cache)
+        self.assertFalse('foo2' in cache)
 
         cache.delete_saved_content()
         cache.load()
