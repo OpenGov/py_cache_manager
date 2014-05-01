@@ -127,7 +127,6 @@ All unit tests for the repo.
 V2.1
 * cPickle with fallback to pickle by default
 * Better argument checks
-* Allow argument to invalidate() to auto-rebuild without checking from disk
 
 ## Author
 Author(s): Matthew Seal
