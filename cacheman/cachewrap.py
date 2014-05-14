@@ -11,7 +11,7 @@ class CacheWrap(MutableMapping, object):
     
     CALLBACK_NAMES = ['loader', 'saver', 'builder', 'deleter', 'pre_processor', 'post_processor', 'validator']
 
-    def __init__(self, cache_name, contents=None, dependents=None, cache_manager=None, **kwargs):
+    def __init__(self, cache_name, contents=None, dependents=None, cache_manager=None, async_saver=False, **kwargs):
         if cache_manager:
             self.manager = cache_manager
         else:
@@ -19,6 +19,7 @@ class CacheWrap(MutableMapping, object):
         self.contents = contents
         self.name = cache_name
         self.dependents = set([self._convert_dependent_to_name(d) for d in dependents] if dependents else [])
+        self.async_saver = async_saver
         
         for name in CacheWrap.CALLBACK_NAMES:
             setattr(self, name, kwargs.get(name))
@@ -94,7 +95,7 @@ class CacheWrap(MutableMapping, object):
         return pickle_loader(self.manager.cache_directory, self.name)
 
     def _manager_pickle_saver(self, name, contents):
-        return pickle_saver(self.manager.cache_directory, name, contents)
+        return pickle_saver(self.manager.cache_directory, name, contents, async=self.async_saver)
 
     def _manager_pickle_deleter(self, name):
         return pickle_deleter(self.manager.cache_directory, name)
@@ -117,12 +118,16 @@ class CacheWrap(MutableMapping, object):
 
     def _pre_process(self, contents):
         if self.pre_processor:
-            contents = self.pre_processor(contents)
+            proc_contents = self.pre_processor(contents)
+            if proc_contents is not None:
+                contents = proc_contents
         return contents
 
     def _post_process(self, contents):
         if self.post_processor:
-            contents = self.post_processor(contents)
+            proc_contents = self.post_processor(contents)
+            if proc_contents is not None:
+                contents = proc_contents
         return contents
 
     def _build(self):

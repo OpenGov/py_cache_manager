@@ -1,11 +1,11 @@
 # This import fixes sys.path issues
 import parentpath
 
-import os
 import copy
-import glob
 import unittest
-from cacheman import cacher, registers
+import psutil
+import os
+from cacheman import registers
 from common import CacheCommonAsserter
 
 class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
@@ -17,8 +17,8 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         cache_one_name = self.check_cache_gone('foo_bar') if check_file else 'foo_bar'
         cache_two_name = self.check_cache_gone('baz_bar') if check_file else 'baz_bar'
 
-        cache_one = self.manager.register_cache(cache_one_name, { 'foo': 'bar' })
-        cache_two = self.manager.register_cache(cache_two_name, { 'baz': 'bar' })
+        self.manager.register_cache(cache_one_name, { 'foo': 'bar' })
+        self.manager.register_cache(cache_two_name, { 'baz': 'bar' })
 
         return cache_one_name, cache_two_name
 
@@ -413,6 +413,41 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         cache['baz'] = 'bar'
         self.assert_contents_equal(self.manager.retrieve_cache(cache_name), { 'baz': 'bar' })
         self.assert_contents_equal(self.manager.invalidate_and_rebuild_cache(cache_name), {})
+
+    def wait_async_complete(self):
+        parent = psutil.Process(os.getpid())
+        for child in parent.children(recursive=False):
+            child.wait(timeout=10)
+
+    def test_async_saver(self):
+        cache_name = self.check_cache_gone('foo_bar')
+        cache = self.manager.register_custom_cache(cache_name, { 'foo': 'bar' }, async_saver=True)
+        self.assertTrue(cache.async_saver)
+        self.manager.save_cache_contents(cache_name)
+        self.wait_async_complete()
+
+        cache = self.manager.retrieve_cache(cache_name)
+        cache['baz'] = 'bar'
+        self.manager.save_cache_contents(cache_name)
+        self.wait_async_complete()
+
+        cache = self.manager.reload_cache(cache_name)
+        self.check_cache(cache_name, True)
+        self.assert_contents_equal(cache, { 'foo': 'bar', 'baz': 'bar' })
+
+    def test_async_saver_queue(self):
+        cache_name = self.check_cache_gone('foo_bar')
+        cache = self.manager.register_custom_cache(cache_name, { 'foo': 'bar' }, async_saver=True)
+        self.assertTrue(cache.async_saver)
+        for _ in range(50):
+            self.manager.save_cache_contents(cache_name)
+        cache['baz'] = 'bar'
+        self.manager.save_cache_contents(cache_name)
+        self.wait_async_complete()
+
+        cache = self.manager.reload_cache(cache_name)
+        self.check_cache(cache_name, True)
+        self.assert_contents_equal(cache, { 'foo': 'bar', 'baz': 'bar' })
 
 if __name__ == '__main__':
     unittest.main()

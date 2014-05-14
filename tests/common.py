@@ -12,7 +12,7 @@ class CacheCommonAsserter(object):
     @classmethod
     def cleanup(cls):
         # Cleanup any left-over failed content from last test run
-        for f in glob.glob(os.path.join(CacheCommonAsserter.TEST_CACHE_DIR, '*.pkl')):
+        for f in glob.glob(os.path.join(CacheCommonAsserter.TEST_CACHE_DIR, '*.pkl*')):
             os.remove(f)
 
     def setUp(self):
