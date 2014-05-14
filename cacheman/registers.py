@@ -3,6 +3,7 @@ import cPickle
 import shutil
 import os
 import psutil
+from collections import defaultdict
 
 def dict_loader(*arg, **kwargs):
     return {}
@@ -36,8 +37,15 @@ def ensure_directory(dirname):
             if not os.path.isdir(dirname):
                 raise IOError('Unable to build cache directory: {}'.format(dirname))
 
-def fork_manage(worker_preprocess, worker_action):
-    children = psutil.Process(os.getpid()).children(recursive=False)
+def fork_manage(cache_name, worker_preprocess, worker_action, terminated_cleanup=None):
+    children = [proc for proc in psutil.Process().children(recursive=False) 
+                if proc.pid in fork_manage.seen_pids[cache_name] and proc.status() != psutil.STATUS_ZOMBIE]
+    cache_pids = set(child.pid for child in children)
+    if terminated_cleanup:
+        terminated_pids = fork_manage.seen_pids[cache_name] - cache_pids
+        for pid in terminated_pids:
+            terminated_cleanup(pid)
+    fork_manage.seen_pids[cache_name] = cache_pids
 
     try:
         fork_pid = os.fork()
@@ -47,20 +55,26 @@ def fork_manage(worker_preprocess, worker_action):
         worker_action()
         return
 
-    if fork_pid == 0:
+    if fork_pid != 0:
+        cache_pids.add(fork_pid)
+
+    else:
         try:
             pid = os.getpid()
             worker_preprocess(pid)
 
-            for child in children:
-                try: child.wait(timeout=60)
-                except OSError: pass # Continue if process disappears
+            if children:
+                gone, alive = psutil.wait_procs(children, timeout=60)
+                for p in alive:
+                    print 'Warning stopping previous save for {} cache on pid: {}'.format(cache_name, p.pid)
+                    p.kill()
             worker_action(pid)
         except Exception, e:
-            print "Warning ignored error in saver {}".format(repr(e))
+            print 'Warning ignored error in {} cache saver {}'.format(cache_name, repr(e))
         finally:
             # Exit aggresively -- we don't want cleanup to occur
             os._exit(0)
+fork_manage.seen_pids=defaultdict(set)
 
 def pickle_saver(cache_dir, cache_name, contents, async=False):
     try:
@@ -79,8 +93,13 @@ def pickle_saver(cache_dir, cache_name, contents, async=False):
             temp_ext = '.tmp' + str(pid) if pid is not None else ''
             shutil.move(cache_path + temp_ext, cache_path)
 
+        def temp_pickle_cleanup(pid=None):
+            temp_ext = '.tmp' + str(pid) if pid is not None else ''
+            try: os.remove(cache_path + temp_ext)
+            except OSError: pass
+
         if async:
-            fork_manage(generate_temp_pickle, move_temp_pickle)
+            fork_manage(cache_name, generate_temp_pickle, move_temp_pickle, temp_pickle_cleanup)
         else:
             generate_temp_pickle()
             move_temp_pickle()
