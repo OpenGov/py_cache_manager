@@ -75,7 +75,7 @@ def fork_manage(cache_name, timeout, worker_preprocess, worker_action, terminate
                 # Avoid killing processes that have since died
                 alive = _exclude_zombie_procs(alive_and_undead)
                 for p in alive:
-                    print "Warning killing previous save for '{}'' cache on pid {}".format(cache_name, p.pid)
+                    print "Warning killing previous save for '{}' cache on pid {}".format(cache_name, p.pid)
                     p.kill()
             worker_action(pid)
         except Exception, e:
