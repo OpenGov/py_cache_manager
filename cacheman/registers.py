@@ -38,7 +38,14 @@ def ensure_directory(dirname):
                 raise IOError('Unable to build cache directory: {}'.format(dirname))
 
 def _exclude_zombie_procs(procs):
-    return [p for p in procs if p.status() != psutil.STATUS_ZOMBIE]
+    alive_procs = []
+    for p in procs:
+        try:
+            if p.status() != psutil.STATUS_ZOMBIE:
+                alive_procs.append(p)
+        except:
+            pass
+    return alive_procs
 
 def fork_manage(cache_name, timeout, worker_preprocess, worker_action, terminated_cleanup=None):
     children = _exclude_zombie_procs([proc for proc in psutil.Process().children(recursive=False) 
