@@ -3,7 +3,7 @@ import cPickle
 import shutil
 import os
 import psutil
-from collections import defaultdict
+import csv
 
 def dict_loader(*arg, **kwargs):
     return {}
@@ -14,20 +14,6 @@ disabled_deleter = disabled_saver
 
 def generate_pickle_path(cache_dir, cache_name):
     return os.path.join(cache_dir, cache_name + '.pkl')
-
-def pickle_loader(cache_dir, cache_name):
-    '''
-    Default loader for any cache, this function loads from a pickle file based on cache name.
-    '''
-    try:
-        with open(generate_pickle_path(cache_dir, cache_name), 'rb') as pkl_file:
-            try:
-                contents = cPickle.load(pkl_file)
-            except:
-                contents = pickle.load(pkl_file)
-    except (IOError, EOFError, AttributeError):
-        return None
-    return contents
 
 def ensure_directory(dirname):
     if not os.path.exists(dirname):
@@ -69,7 +55,8 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
     try:
         fork_pid = os.fork()
     except OSError, e:
-        print ("Warning, saving synchronously: {} -- you might be out of shared memory (check kernel.shmmax)".format(repr(e)))
+        print ("Warning, saving {} synchronously: {} ".format(cache_name, repr(e)) +
+            "-- you're out of memory or you might be out of shared memory (check kernel.shmmax)")
         if presaver:
             presaver(cache_name, contents, _tmp_pid_extensions())
         saver(cache_name, contents, _tmp_pid_extensions())
@@ -144,3 +131,62 @@ def pickle_deleter(cache_dir, cache_name):
         os.remove(generate_pickle_path(cache_dir, cache_name))
     except OSError:
         pass
+
+def pickle_loader(cache_dir, cache_name):
+    '''
+    Default loader for any cache, this function loads from a pickle file based on cache name.
+    '''
+    try:
+        with open(generate_pickle_path(cache_dir, cache_name), 'rb') as pkl_file:
+            try:
+                contents = cPickle.load(pkl_file)
+            except:
+                contents = pickle.load(pkl_file)
+    except (IOError, EOFError, AttributeError):
+        return None
+    return contents
+
+def generate_csv_path(cache_dir, cache_name):
+    return os.path.join(cache_dir, cache_name + '.csv')
+
+def csv_saver(cache_dir, cache_name, contents, row_builder=None):
+    try:
+        try:
+            csv_pre_saver(cache_dir, cache_name, contents, ['tmp'], row_builder)
+            csv_mover(cache_dir, cache_name, contents, ['tmp'])
+        except (IOError, EOFError):
+            # TODO log real exception
+            raise IOError('Unable to save {} cache'.format(cache_name))
+    except:
+        try: csv_cleaner(cache_dir, cache_name, ['tmp'])
+        except: pass
+        raise
+
+def csv_pre_saver(cache_dir, cache_name, contents, extensions, row_builder=None):
+    ensure_directory(cache_dir)
+    cache_path = generate_csv_path(cache_dir, cache_name)
+    with open('.'.join([cache_path] + extensions), 'wb') as csv_file:
+        writer = csv.writer(csv_file, dialect='excel', quoting=csv.QUOTE_MINIMAL)
+        for key, value in contents.iteritems():
+            writer.writerow(row_builder(key, value) if row_builder else [key, value])
+
+def csv_mover(cache_dir, cache_name, contents, extensions):
+    cache_path = generate_csv_path(cache_dir, cache_name)
+    shutil.move('.'.join([cache_path] + extensions), cache_path)
+
+def csv_cleaner(cache_dir, cache_name, extensions):
+    cache_path = generate_csv_path(cache_dir, cache_name)
+    try: os.remove('.'.join([cache_path] + extensions))
+    except OSError: pass
+
+def csv_loader(cache_dir, cache_name, row_reader=None):
+    contents = {}
+    try:
+        with open(generate_csv_path(cache_dir, cache_name), 'rb') as csv_file:
+            reader = csv.reader(csv_file, dialect='excel', quoting=csv.QUOTE_MINIMAL)
+            for row in reader:
+                key, val = row_reader(row) if row_reader else (row[0], row[1])
+                contents[key] = val
+    except (IOError, EOFError):
+        return None
+    return contents

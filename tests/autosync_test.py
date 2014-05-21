@@ -1,24 +1,11 @@
 # This import fixes sys.path issues
 import parentpath
 
-import os
-import copy
-import glob
 import unittest
+from faketime import FakeTime
 from datetime import datetime, timedelta
-from cacheman import cacher, autosync
+from cacheman import autosync
 from common import CacheCommonAsserter
-
-class FakeTime(object):
-    def __init__(self):
-        self.stored_time = datetime.now()
-
-    def now(self):
-        return self.stored_time;
-
-    def incr_time(self, delta_time):
-        self.stored_time += delta_time
-autosync.datetime = FakeTime()
 
 class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
     def setUp(self):
@@ -29,6 +16,10 @@ class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
     def tearDown(self):
         CacheCommonAsserter.tearDown(self)
         autosync.datetime = datetime
+
+    @classmethod
+    def setUpClass(cls):
+        CacheCommonAsserter.cleanup()
 
     def build_fast_sync_cache(self, cache_name):
         return autosync.AutoSyncCache(cache_name, cache_manager=self.manager, 
@@ -57,6 +48,7 @@ class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
     def test_auto_sync_time_windows(self):
         cache_name = 'auto'
         cache = self.build_fast_sync_cache(cache_name)
+        self.assertEqual(len(cache.time_counts), 5)
 
         cache['not_enough'] = True
         cache.load()
@@ -88,6 +80,7 @@ class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
     def test_out_of_window(self):
         cache_name = 'out_of_bounds'
         cache = self.build_fast_sync_cache(cache_name)
+        self.assertEqual(len(cache.time_counts), 5)
 
         # Should ignore edit counts from after window
         cache.track_edit(edit_time=self.faketime.now() + timedelta(seconds=1))
@@ -107,6 +100,7 @@ class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
     def test_window_cycling(self):
         cache_name = 'cycle'
         cache = self.build_fast_sync_cache(cache_name)
+        self.assertEqual(len(cache.time_counts), 5)
 
         cache.track_edit(edit_time=self.faketime.now())
         self.assertEqual(list(cache.time_counts), [0] * 4 + [1])

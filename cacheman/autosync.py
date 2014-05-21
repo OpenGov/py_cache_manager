@@ -5,16 +5,17 @@ from operator import attrgetter
 
 TimeCount = namedtuple('TimeCount', ['time_length', 'count'])
 
-class AutoSyncCache(PersistentCache):
-    def __init__(self, cache_name, time_checks=None, time_bucket_size=None, **kwargs):
+class AutoSyncCacheBase(object):
+    def __init__(self, base_class, cache_name, time_checks=None, time_bucket_size=None, **kwargs):
         # These are sorted from shortest time frame to longest
         self.time_checks = sorted(time_checks or [TimeCount(60, 10000), TimeCount(300, 10), TimeCount(900, 1)],
             key=attrgetter('time_length'))
         self.time_bucket_size = time_bucket_size or 15 # Seconds
         self.time_counts = deque(0 for _ in xrange(self.bucket_count()))
         self.last_shift_time = datetime.now()
+        self.base_class = base_class
 
-        PersistentCache.__init__(self, cache_name, **kwargs)
+        self.base_class.__init__(self, cache_name, **kwargs)
 
     def bucket_count(self):
         return self.time_checks[-1].time_length / self.time_bucket_size
@@ -91,16 +92,23 @@ class AutoSyncCache(PersistentCache):
 
     def _build(self, *args, **kwargs):
         self.clear_bucket_counts()
-        return PersistentCache._build(self, *args, **kwargs)
+        return self.base_class._build(self, *args, **kwargs)
 
     def load(self, *args, **kwargs):
         self.clear_bucket_counts()
-        return PersistentCache.load(self, *args, **kwargs)
+        return self.base_class.load(self, *args, **kwargs)
 
     def save(self, *args, **kwargs):
         self.clear_bucket_counts()
-        return PersistentCache.save(self, *args, **kwargs)
+        return self.base_class.save(self, *args, **kwargs)
 
     def delete_saved_content(self, *args, **kwargs):
         self.clear_bucket_counts()
-        return PersistentCache.delete_saved_content(self, *args, **kwargs)
+        return self.base_class.delete_saved_content(self, *args, **kwargs)
+
+class AutoSyncCache(AutoSyncCacheBase, PersistentCache):
+    '''
+    AutoSyncCache defaults to a pickle basis over PersistentCache.
+    '''
+    def __init__(self, cache_name, **kwargs):
+        AutoSyncCacheBase.__init__(self, PersistentCache, cache_name, **kwargs)
