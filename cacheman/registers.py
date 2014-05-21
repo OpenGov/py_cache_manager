@@ -3,7 +3,6 @@ import cPickle
 import shutil
 import os
 import psutil
-from collections import defaultdict
 
 def dict_loader(*arg, **kwargs):
     return {}
@@ -69,7 +68,8 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
     try:
         fork_pid = os.fork()
     except OSError, e:
-        print ("Warning, saving synchronously: {} -- you might be out of shared memory (check kernel.shmmax)".format(repr(e)))
+        print ("Warning, saving {} synchronously: {} ".format(cache_name, repr(e)) +
+            "-- you're out of memory or you might be out of shared memory (check kernel.shmmax)")
         if presaver:
             presaver(cache_name, contents, _tmp_pid_extensions())
         saver(cache_name, contents, _tmp_pid_extensions())
