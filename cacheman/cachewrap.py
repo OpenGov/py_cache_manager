@@ -9,9 +9,11 @@ class CacheWrap(MutableMapping, object):
     the cache object.
     '''
     
-    CALLBACK_NAMES = ['loader', 'saver', 'builder', 'deleter', 'pre_processor', 'post_processor', 'validator']
+    CALLBACK_NAMES = ['loader', 'async_presaver', 'async_saver', 'async_cleaner', 'saver', 'builder', 'deleter',
+                      'pre_processor', 'post_processor', 'validator']
 
-    def __init__(self, cache_name, contents=None, dependents=None, cache_manager=None, async_saver=False, **kwargs):
+    def __init__(self, cache_name, contents=None, dependents=None, cache_manager=None,
+                 async_saves=False, async_timeout=60, save_on_blank_cache=True, **kwargs):
         if cache_manager:
             self.manager = cache_manager
         else:
@@ -19,10 +21,11 @@ class CacheWrap(MutableMapping, object):
         self.contents = contents
         self.name = cache_name
         self.dependents = set([self._convert_dependent_to_name(d) for d in dependents] if dependents else [])
-        self.async_saver = async_saver
+        self.async_timeout = async_timeout
+        self.save_on_blank = save_on_blank_cache
         
         for name in CacheWrap.CALLBACK_NAMES:
-            setattr(self, name, kwargs.get(name))
+            setattr(self, name, kwargs.get(name) or getattr(self, name, None))
 
         if not self.manager.cache_registered(self.name):
             self.manager.register_cache(self.name, contents=self)
@@ -95,7 +98,16 @@ class CacheWrap(MutableMapping, object):
         return pickle_loader(self.manager.cache_directory, self.name)
 
     def _manager_pickle_saver(self, name, contents):
-        return pickle_saver(self.manager.cache_directory, name, contents, async=self.async_saver)
+        return pickle_saver(self.manager.cache_directory, name, contents)
+
+    def _manager_pickle_async_presaver(self, name, contents, extensions):
+        return pickle_pre_saver(self.manager.cache_directory, name, contents, extensions)
+
+    def _manager_pickle_async_mover(self, name, contents, extensions):
+        return pickle_mover(self.manager.cache_directory, name, contents, extensions)
+
+    def _manager_pickle_async_cleaner(self, name, extensions):
+        return pickle_cleaner(self.manager.cache_directory, name, extensions)
 
     def _manager_pickle_deleter(self, name):
         return pickle_deleter(self.manager.cache_directory, name)
@@ -139,6 +151,10 @@ class CacheWrap(MutableMapping, object):
 
         return self.contents
 
+    def _async_save(self, name, contents):
+        fork_content_save(name, contents, self.async_presaver, self.async_saver, self.async_cleaner,
+            self.async_timeout, self.manager.async_pid_cache)
+
     def load(self, apply_to_dependents=False, seen_caches=None):
         if seen_caches and self.name in seen_caches:
             return
@@ -170,7 +186,12 @@ class CacheWrap(MutableMapping, object):
                 dependent.save(apply_to_dependents, seen_caches)
 
         contents = self._pre_process(self.contents)
-        return (self.saver and self.saver(self.name, contents)) or contents
+        if not self.save_on_blank and not contents:
+            return contents
+
+        # Determine if we're doing an async save or not
+        saver = self._async_save if self.async_saver else self.saver
+        return (saver and saver(self.name, contents)) or contents
 
     def invalidate(self, apply_to_dependents=True, seen_caches=None):
         return self.load(apply_to_dependents, seen_caches)
@@ -234,8 +255,15 @@ class PersistentCache(CacheWrap):
     '''
     A persistent cache which saves and loads from pickle files.
     '''
-    def __init__(self, cache_name, **kwargs):
-        CacheWrap.__init__(self, cache_name, **dict([
+    def __init__(self, cache_name, async=False, **kwargs):
+        persistent_items = [
             ('loader', self._manager_pickle_loader),
             ('saver', self._manager_pickle_saver),
-            ('deleter', self._manager_pickle_deleter)] + kwargs.items()))
+            ('deleter', self._manager_pickle_deleter)]
+        if async:
+            persistent_items.extend([
+                ('async_presaver', self._manager_pickle_async_presaver),
+                ('async_saver', self._manager_pickle_async_mover),
+                ('async_cleaner', self._manager_pickle_async_cleaner)
+            ])
+        CacheWrap.__init__(self, cache_name, **dict(persistent_items + kwargs.items()))

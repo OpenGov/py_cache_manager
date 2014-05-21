@@ -1,13 +1,15 @@
 from collections import namedtuple, deque
 from datetime import datetime
 from cachewrap import PersistentCache
+from operator import attrgetter
 
 TimeCount = namedtuple('TimeCount', ['time_length', 'count'])
 
 class AutoSyncCache(PersistentCache):
     def __init__(self, cache_name, time_checks=None, time_bucket_size=None, **kwargs):
-        # These are ordered from shortest time frame to longest (don't change relative order)
-        self.time_checks = time_checks or [TimeCount(60, 10000), TimeCount(300, 10), TimeCount(900, 1)]
+        # These are sorted from shortest time frame to longest
+        self.time_checks = sorted(time_checks or [TimeCount(60, 10000), TimeCount(300, 10), TimeCount(900, 1)],
+            key=attrgetter('time_length'))
         self.time_bucket_size = time_bucket_size or 15 # Seconds
         self.time_counts = deque(0 for _ in xrange(self.bucket_count()))
         self.last_shift_time = datetime.now()
