@@ -111,13 +111,13 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
 def pickle_saver(cache_dir, cache_name, contents):
     try:
         try:
-            pickle_pre_saver(cache_dir, cache_name, contents, ['.tmp'])
-            pickle_mover(cache_dir, cache_name, contents, ['.tmp'])
+            pickle_pre_saver(cache_dir, cache_name, contents, ['tmp'])
+            pickle_mover(cache_dir, cache_name, contents, ['tmp'])
         except (IOError, EOFError):
             # TODO log real exception
             raise IOError('Unable to save {} cache'.format(cache_name))
     except:
-        try: pickle_cleaner(cache_dir, cache_name, ['.tmp'])
+        try: pickle_cleaner(cache_dir, cache_name, ['tmp'])
         except: pass
         raise
 
