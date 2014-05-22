@@ -2,6 +2,7 @@ import os
 import tempfile
 import autosync as sync
 import cachewrap
+from collections import defaultdict
 
 DEFAULT_CACHEMAN = 'general_cacher'
 
@@ -20,6 +21,7 @@ class CacheManager():
         self.name = manager_name
         self.cache_directory = os.path.join(tempfile.gettempdir(), self.name)
         self.cache_by_name = {}
+        self.async_pid_cache = defaultdict(set) # Used for async cache tracking
 
     def __del__(self):
         self.save_all_cache_contents()

@@ -2,8 +2,9 @@ import pickle
 import cPickle
 import shutil
 import os
+import sys
 import psutil
-from collections import defaultdict
+import csv
 
 def dict_loader(*arg, **kwargs):
     return {}
@@ -12,22 +13,14 @@ def disabled_saver(*arg, **kwargs):
     pass
 disabled_deleter = disabled_saver
 
-def generate_pickle_path(cache_dir, cache_name):
-    return os.path.join(cache_dir, cache_name + '.pkl')
+def generate_path(cache_dir, cache_name, extension):
+    return os.path.join(cache_dir, '.'.join([cache_name, extension]))
 
-def pickle_loader(cache_dir, cache_name):
-    '''
-    Default loader for any cache, this function loads from a pickle file based on cache name.
-    '''
-    try:
-        with open(generate_pickle_path(cache_dir, cache_name), 'rb') as pkl_file:
-            try:
-                contents = cPickle.load(pkl_file)
-            except:
-                contents = pickle.load(pkl_file)
-    except (IOError, EOFError, AttributeError):
-        return None
-    return contents
+def generate_pickle_path(cache_dir, cache_name):
+    return generate_path(cache_dir, cache_name, 'pkl')
+
+def generate_csv_path(cache_dir, cache_name):
+    return generate_path(cache_dir, cache_name, 'csv')
 
 def ensure_directory(dirname):
     if not os.path.exists(dirname):
@@ -47,25 +40,39 @@ def _exclude_zombie_procs(procs):
             pass
     return alive_procs
 
-def fork_manage(cache_name, timeout, worker_preprocess, worker_action, terminated_cleanup=None):
+def _tmp_pid_extensions(pid=None):
+    extensions = ['tmp']
+    if pid:
+        extensions.append(str(pid))
+    return extensions
+
+def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, seen_pids):
     children = _exclude_zombie_procs([proc for proc in psutil.Process().children(recursive=False) 
-            if proc.pid in fork_manage.seen_pids[cache_name]])
+            if proc.pid in seen_pids[cache_name]])
     cache_pids = set(child.pid for child in children)
-    terminated_pids = fork_manage.seen_pids[cache_name] - cache_pids
+    terminated_pids = seen_pids[cache_name] - cache_pids
     for pid in terminated_pids:
         # Slay the undead... they mingle with the living...
         try: os.waitpid(pid, 0)
         except OSError: pass
-        if terminated_cleanup:
-            terminated_cleanup(pid)
-    fork_manage.seen_pids[cache_name] = cache_pids
+        if cleaner:
+            cleaner(cache_name, _tmp_pid_extensions(pid))
+    seen_pids[cache_name] = cache_pids
 
     try:
         fork_pid = os.fork()
-    except (AttributeError, OSError):
+    except OSError, e:
+        print ("Warning, saving {} synchronously: {} ".format(cache_name, repr(e)) +
+            "-- you're out of memory or you might be out of shared memory (check kernel.shmmax)")
+        if presaver:
+            presaver(cache_name, contents, _tmp_pid_extensions())
+        saver(cache_name, contents, _tmp_pid_extensions())
+        return
+    except AttributeError:
         # Windows has no fork... TODO make windows async saver
-        worker_preprocess()
-        worker_action()
+        if presaver:
+            presaver(cache_name, contents, _tmp_pid_extensions())
+        saver(cache_name, contents, _tmp_pid_extensions())
         return
 
     if fork_pid != 0:
@@ -73,7 +80,8 @@ def fork_manage(cache_name, timeout, worker_preprocess, worker_action, terminate
     else:
         try:
             pid = os.getpid()
-            worker_preprocess(pid)
+            if presaver:
+                presaver(cache_name, contents, _tmp_pid_extensions(pid))
 
             # Refilter our zombies
             children = _exclude_zombie_procs(children)
@@ -84,47 +92,110 @@ def fork_manage(cache_name, timeout, worker_preprocess, worker_action, terminate
                 for p in alive:
                     print "Warning killing previous save for '{}' cache on pid {}".format(cache_name, p.pid)
                     p.kill()
-            worker_action(pid)
+            saver(cache_name, contents, _tmp_pid_extensions(pid))
         except Exception, e:
+            if cleaner:
+                try: cleaner(cache_name, contents, _tmp_pid_extensions())
+                except: pass
             print "Warning: ignored error in '{}' cache saver - {}".format(cache_name, repr(e))
         finally:
             # Exit aggresively -- we don't want cleanup to occur
             os._exit(0)
-fork_manage.seen_pids=defaultdict(set)
 
-def pickle_saver(cache_dir, cache_name, contents, async=False, async_timeout=60):
+def pickle_saver(cache_dir, cache_name, contents):
     try:
-        ensure_directory(cache_dir)
-        cache_path = generate_pickle_path(cache_dir, cache_name)
+        try:
+            pickle_pre_saver(cache_dir, cache_name, contents, ['tmp'])
+            pickle_mover(cache_dir, cache_name, contents, ['tmp'])
+        except (IOError, EOFError):
+            # TODO log real exception
+            raise IOError('Unable to save {} cache'.format(cache_name))
+    except:
+        try: pickle_cleaner(cache_dir, cache_name, ['tmp'])
+        except: pass
+        raise
 
-        def generate_temp_pickle(pid=None):
-            temp_ext = '.tmp' + str(pid) if pid is not None else ''
-            with open(cache_path + temp_ext, 'wb') as pkl_file:
-                try:
-                    cPickle.dump(contents, pkl_file)
-                except:
-                    pickle.dump(contents, pkl_file)
+def pickle_pre_saver(cache_dir, cache_name, contents, extensions):
+    ensure_directory(cache_dir)
+    cache_path = generate_pickle_path(cache_dir, cache_name)
+    with open('.'.join([cache_path] + extensions), 'wb') as pkl_file:
+        try:
+            cPickle.dump(contents, pkl_file)
+        except:
+            pickle.dump(contents, pkl_file)
 
-        def move_temp_pickle(pid=None):
-            temp_ext = '.tmp' + str(pid) if pid is not None else ''
-            shutil.move(cache_path + temp_ext, cache_path)
+def pickle_mover(cache_dir, cache_name, contents, extensions):
+    cache_path = generate_pickle_path(cache_dir, cache_name)
+    shutil.move('.'.join([cache_path] + extensions), cache_path)
 
-        def temp_pickle_cleanup(pid=None):
-            temp_ext = '.tmp' + str(pid) if pid is not None else ''
-            try: os.remove(cache_path + temp_ext)
-            except OSError: pass
-
-        if async:
-            fork_manage(cache_name, async_timeout, generate_temp_pickle, move_temp_pickle, temp_pickle_cleanup)
-        else:
-            generate_temp_pickle()
-            move_temp_pickle()
-    except (IOError, EOFError):
-        # TODO log real exception
-        raise IOError('Unable to save {} cache'.format(cache_name))
+def pickle_cleaner(cache_dir, cache_name, extensions):
+    cache_path = generate_pickle_path(cache_dir, cache_name)
+    try: os.remove('.'.join([cache_path] + extensions))
+    except OSError: pass
 
 def pickle_deleter(cache_dir, cache_name):
     try:
         os.remove(generate_pickle_path(cache_dir, cache_name))
     except OSError:
         pass
+
+def pickle_loader(cache_dir, cache_name):
+    '''
+    Default loader for any cache, this function loads from a pickle file based on cache name.
+    '''
+    contents = None
+    try:
+        with open(generate_pickle_path(cache_dir, cache_name), 'rb') as pkl_file:
+            try:
+                contents = cPickle.load(pkl_file)
+            except:
+                exc_info = sys.exc_info()
+                try: contents = pickle.load(pkl_file)
+                except (IndexError, AttributeError): pass
+                if contents is None:
+                    raise exc_info[1], None, exc_info[2]
+    except (IOError, EOFError):
+        return None
+    return contents
+
+def csv_saver(cache_dir, cache_name, contents, row_builder=None):
+    try:
+        try:
+            csv_pre_saver(cache_dir, cache_name, contents, ['tmp'], row_builder)
+            csv_mover(cache_dir, cache_name, contents, ['tmp'])
+        except (IOError, EOFError):
+            # TODO log real exception
+            raise IOError('Unable to save {} cache'.format(cache_name))
+    except:
+        try: csv_cleaner(cache_dir, cache_name, ['tmp'])
+        except: pass
+        raise
+
+def csv_pre_saver(cache_dir, cache_name, contents, extensions, row_builder=None):
+    ensure_directory(cache_dir)
+    cache_path = generate_csv_path(cache_dir, cache_name)
+    with open('.'.join([cache_path] + extensions), 'wb') as csv_file:
+        writer = csv.writer(csv_file, dialect='excel', quoting=csv.QUOTE_MINIMAL)
+        for key, value in contents.iteritems():
+            writer.writerow(row_builder(key, value) if row_builder else [key, value])
+
+def csv_mover(cache_dir, cache_name, contents, extensions):
+    cache_path = generate_csv_path(cache_dir, cache_name)
+    shutil.move('.'.join([cache_path] + extensions), cache_path)
+
+def csv_cleaner(cache_dir, cache_name, extensions):
+    cache_path = generate_csv_path(cache_dir, cache_name)
+    try: os.remove('.'.join([cache_path] + extensions))
+    except OSError: pass
+
+def csv_loader(cache_dir, cache_name, row_reader=None):
+    contents = {}
+    try:
+        with open(generate_csv_path(cache_dir, cache_name), 'rb') as csv_file:
+            reader = csv.reader(csv_file, dialect='excel', quoting=csv.QUOTE_MINIMAL)
+            for row in reader:
+                key, val = row_reader(row) if row_reader else (row[0], row[1])
+                contents[key] = val
+    except (IOError, EOFError):
+        return None
+    return contents
