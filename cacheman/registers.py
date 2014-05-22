@@ -2,6 +2,7 @@ import pickle
 import cPickle
 import shutil
 import os
+import sys
 import psutil
 import csv
 
@@ -12,8 +13,14 @@ def disabled_saver(*arg, **kwargs):
     pass
 disabled_deleter = disabled_saver
 
+def generate_path(cache_dir, cache_name, extension):
+    return os.path.join(cache_dir, '.'.join([cache_name, extension]))
+
 def generate_pickle_path(cache_dir, cache_name):
-    return os.path.join(cache_dir, cache_name + '.pkl')
+    return generate_path(cache_dir, cache_name, 'pkl')
+
+def generate_csv_path(cache_dir, cache_name):
+    return generate_path(cache_dir, cache_name, 'csv')
 
 def ensure_directory(dirname):
     if not os.path.exists(dirname):
@@ -136,18 +143,20 @@ def pickle_loader(cache_dir, cache_name):
     '''
     Default loader for any cache, this function loads from a pickle file based on cache name.
     '''
+    contents = None
     try:
         with open(generate_pickle_path(cache_dir, cache_name), 'rb') as pkl_file:
             try:
                 contents = cPickle.load(pkl_file)
             except:
-                contents = pickle.load(pkl_file)
-    except (IOError, EOFError, AttributeError):
+                exc_info = sys.exc_info()
+                try: contents = pickle.load(pkl_file)
+                except (IndexError, AttributeError): pass
+                if contents is None:
+                    raise exc_info[1], None, exc_info[2]
+    except (IOError, EOFError):
         return None
     return contents
-
-def generate_csv_path(cache_dir, cache_name):
-    return os.path.join(cache_dir, cache_name + '.csv')
 
 def csv_saver(cache_dir, cache_name, contents, row_builder=None):
     try:
