@@ -26,7 +26,8 @@ class CacheCommonAsserter(object):
         del self.manager
 
     def assert_contents_equal(self, cache, check_contents):
-        self.assertIsNotNone(cache.contents)
+        if check_contents is not None:
+            self.assertIsNotNone(cache.contents)
         if isinstance(cache.contents, dict):
             self.assertDictEqual(cache.contents, check_contents)
         elif isinstance(cache.contents, list):

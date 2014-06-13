@@ -31,5 +31,8 @@ class CSVCache(CacheWrap):
         return csv_cleaner(self.manager.cache_directory, name, extensions)
 
 class AutoSyncCSVCache(AutoSyncCacheBase, CSVCache):
+    '''
+    AutoSyncCSVCache defaults to a csv basis.
+    '''
     def __init__(self, cache_name, **kwargs):
         AutoSyncCacheBase.__init__(self, CSVCache, cache_name, **kwargs)

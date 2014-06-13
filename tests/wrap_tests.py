@@ -197,6 +197,11 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
         cache.load()
         self.assert_contents_equal(cache, ['changed'])
 
+        # Raising an exception in validator should invalidate the cache
+        cache.validator = lambda *args: args['not legal']
+        cache.load()
+        self.assert_contents_equal(cache, None)
+
     def test_dependents(self):
         dependent_cache_name = self.check_cache_gone('dependent')
         dependent_cache = PersistentCache(dependent_cache_name, cache_manager=self.manager)
