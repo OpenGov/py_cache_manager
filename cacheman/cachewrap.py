@@ -168,9 +168,16 @@ class CacheWrap(MutableMapping, object):
         if self.loader:
             self.contents = self.loader(self.name)
 
-            if self.contents is None or (self.validator and not self.validator(self.contents)):
+            if self.contents is None:
                 self.contents = None
-            else:
+            elif self.validator:
+                try:
+                    if not self.validator(self.contents):
+                        self.contents = None
+                except:
+                    self.contents = None
+
+            if self.contents is not None:
                 self.contents = self._post_process(self.contents)
         else:
             self.contents = None
