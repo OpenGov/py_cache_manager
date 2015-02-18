@@ -289,6 +289,9 @@ class LazyBuildNonPersistentCache(NonPersistentCache):
             if self.contents is None:
                 raise AttributeError("No cache contents defined for '{}'".format(self.name))
 
+    def loader(self, *args, **kwargs):
+        return None
+
     def __contains__(self, *args, **kwargs):
         if self.contents is None:
             self._build()
