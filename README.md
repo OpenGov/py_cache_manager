@@ -18,7 +18,7 @@ changes occur over 300 seconds (but after 60 seconds), or 1 change occurs within
 an AutoSyncCache from the autosync submodule.
 
 ## Dependencies
-allset -- for automatic module importing
+psutil -- for asynchronous cache saving
 
 ## Features
 * Drop in replacement for local memory dictionaries

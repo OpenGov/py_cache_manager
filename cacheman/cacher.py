@@ -1,8 +1,9 @@
 import os
 import tempfile
-import autosync as sync
-import cachewrap
 from collections import defaultdict
+
+from .cachewrap import CacheWrap, NonPersistentCache, PersistentCache
+from .autosync import AutoSyncCache
 
 DEFAULT_CACHEMAN = 'general_cacher'
 
@@ -52,15 +53,15 @@ class CacheManager():
         return self.register_custom_cache(cache_name, contents, persistent=True, autosync=True, nowrapper=False)
 
     def register_custom_cache(self, cache_name, contents=None, persistent=True, autosync=True, nowrapper=False, **kwargs):
-        if nowrapper or isinstance(contents, cachewrap.CacheWrap):
+        if nowrapper or isinstance(contents, CacheWrap):
             cache = contents
         elif not persistent:
             # Replace default pickle loader/saver/deleter
-            cache = cachewrap.NonPersistentCache(cache_name, cache_manager=self, contents=contents, **kwargs)
+            cache = NonPersistentCache(cache_name, cache_manager=self, contents=contents, **kwargs)
         elif autosync:
-            cache = sync.AutoSyncCache(cache_name, cache_manager=self, contents=contents, **kwargs)
+            cache = AutoSyncCache(cache_name, cache_manager=self, contents=contents, **kwargs)
         else:
-            cache = cachewrap.PersistentCache(cache_name, cache_manager=self, contents=contents, **kwargs)
+            cache = PersistentCache(cache_name, cache_manager=self, contents=contents, **kwargs)
 
         self.cache_by_name[cache_name] = cache
         return self.retrieve_cache(cache_name)
