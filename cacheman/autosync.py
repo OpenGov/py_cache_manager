@@ -1,9 +1,11 @@
 from collections import namedtuple, deque
 from datetime import datetime
-from cachewrap import PersistentCache
 from operator import attrgetter
 
+from .cachewrap import PersistentCache
+
 TimeCount = namedtuple('TimeCount', ['time_length', 'count'])
+MANY_WRITE_TIME_COUNTS = [TimeCount(60, 1000000), TimeCount(300, 10000), TimeCount(900, 1)]
 
 class AutoSyncCacheBase(object):
     def __init__(self, base_class, cache_name, time_checks=None, time_bucket_size=None, **kwargs):

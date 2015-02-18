@@ -1,7 +1,8 @@
 import os
-from autosync import AutoSyncCacheBase
-from cachewrap import CacheWrap
-from registers import *
+
+from .registers import *
+from .cachewrap import CacheWrap
+from .autosync import AutoSyncCacheBase
 
 class CSVCache(CacheWrap):
     def __init__(self, cache_name, row_builder=None, row_reader=None, **kwargs):

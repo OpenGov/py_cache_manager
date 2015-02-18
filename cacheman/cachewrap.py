@@ -1,6 +1,6 @@
 from collections import MutableMapping
-from registers import *
-import cacher
+
+from .registers import *
 
 class CacheWrap(MutableMapping, object):
     '''
@@ -8,7 +8,7 @@ class CacheWrap(MutableMapping, object):
     rebuild, destroy, or save it's contents without disrupting any references to
     the cache object.
     '''
-    
+
     CALLBACK_NAMES = ['loader', 'async_presaver', 'async_saver', 'async_cleaner', 'saver', 'builder', 'deleter',
                       'pre_processor', 'post_processor', 'validator']
 
@@ -17,7 +17,8 @@ class CacheWrap(MutableMapping, object):
         if cache_manager:
             self.manager = cache_manager
         else:
-            self.manager = cacher.get_cache_manager()
+            from .cacher import get_cache_manager # Import here to avoid circular import
+            self.manager = get_cache_manager()
         self.contents = contents
         self.name = cache_name
         self.dependents = set([self._convert_dependent_to_name(d) for d in dependents] if dependents else [])
@@ -58,6 +59,10 @@ class CacheWrap(MutableMapping, object):
                     return getattr(self.contents, getter)(name)
                 except AttributeError:
                     pass
+            try:
+                return getattr(self.contents, name)
+            except AttributeError:
+                pass
         raise AttributeError("'{}' and '{}' objects have no attribute '{}'".format(self.__class__.__name__, self.contents.__class__.__name__, name))
 
     def _check_contents_present(self):
@@ -263,6 +268,48 @@ class NonPersistentCache(CacheWrap):
 
     def builder(self, *args, **kwargs):
         return {}
+
+class LazyBuildNonPersistentCache(NonPersistentCache):
+    '''
+    Emulates a NonPersistence cache with a lazy builder that loads data on demand.
+    '''
+    def __init__(self, *args, **kwargs):
+        builder = kwargs.get('builder')
+        if builder:
+            del kwargs['builder']
+        NonPersistentCache.__init__(self, *args, **kwargs)
+        if builder:
+            self.contents = None
+            setattr(self, 'builder', builder)
+        self.lazy_loading = False
+
+    def _check_contents_present(self):
+        if self.contents is None:
+            self._build()
+            if self.contents is None:
+                raise AttributeError("No cache contents defined for '{}'".format(self.name))
+
+    def __contains__(self, *args, **kwargs):
+        if self.contents is None:
+            self._build()
+        return NonPersistentCache.__contains__(self, *args, **kwargs)
+
+    def __getattr__(self, name):
+        if object.__getattribute__(self, 'contents') is None and not object.__getattribute__(self, 'lazy_loading'):
+            self.lazy_loading = True
+            self._build()
+            self.lazy_loading = False
+        return NonPersistentCache.__getattr__(self, name)
+
+    def __str__(self):
+        if self.contents is None:
+            self._build()
+        return NonPersistentCache.__str__(self)
+
+    def __repr__(self):
+        if self.contents is None:
+            self._build()
+        return NonPersistentCache.__repr__(self)
 
 class PersistentCache(CacheWrap):
     '''

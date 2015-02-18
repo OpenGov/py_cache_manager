@@ -1,2 +1,1 @@
-allset<2.0.0
 psutil==2.1.0
