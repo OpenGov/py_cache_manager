@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/OpenGov/py_cache_manager.svg?branch=master)](https://travis-ci.org/OpenGov/py_cache_manager)
+
 # CacheMan
 A Python interface for managing dependent caches.
 
