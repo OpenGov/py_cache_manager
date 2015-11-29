@@ -24,7 +24,7 @@ setup(
     name='CacheMan',
     version=version,
     author='Matthew Seal',
-    author_email='mseal@opengov.us',
+    author_email='mseal@opengov.com',
     description='A dependent cache manager',
     long_description=readMD('README.md'),
     install_requires=required,
