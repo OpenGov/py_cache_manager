@@ -1,6 +1,7 @@
 from collections import namedtuple, deque
 from datetime import datetime
 from operator import attrgetter
+from builtins import range
 
 from .cachewrap import PersistentCache
 
@@ -13,48 +14,48 @@ class AutoSyncCacheBase(object):
         self.time_checks = sorted(time_checks or [TimeCount(60, 10000), TimeCount(300, 10), TimeCount(900, 1)],
             key=attrgetter('time_length'))
         self.time_bucket_size = time_bucket_size or 15 # Seconds
-        self.time_counts = deque(0 for _ in xrange(self.bucket_count()))
+        self.time_counts = deque(0 for _ in range(self.bucket_count()))
         self.last_shift_time = datetime.now()
         self.base_class = base_class
 
         self.base_class.__init__(self, cache_name, **kwargs)
 
     def bucket_count(self):
-        return self.time_checks[-1].time_length / self.time_bucket_size
+        return self.time_checks[-1].time_length // self.time_bucket_size
 
     def _delta_bucket_match(self, delta_shift_time):
         return max(min(self.bucket_count(),
-               int(delta_shift_time.total_seconds() / self.time_bucket_size)), 0)
+               int(delta_shift_time.total_seconds() // self.time_bucket_size)), 0)
 
     def find_bucket(self, edit_time):
         '''
         Raises IndexError on times outside bucket range.
         '''
         delta_shift_time = self.last_shift_time - edit_time
-        bucket = self.bucket_count() - 1 - int(delta_shift_time.total_seconds() / self.time_bucket_size)
+        bucket = self.bucket_count() - 1 - int(delta_shift_time.total_seconds() // self.time_bucket_size)
         if bucket < 0 or bucket >= self.bucket_count():
             raise IndexError('Time of edit since last shift outside bucket bounds')
         return bucket
 
     def time_shift_buckets(self):
         shift_time = datetime.now()
-        snapped_seconds = self.time_bucket_size * (shift_time.second / self.time_bucket_size)
+        snapped_seconds = self.time_bucket_size * (shift_time.second // self.time_bucket_size)
         shift_time = shift_time.replace(second=snapped_seconds)
         delta_buckets = self._delta_bucket_match(shift_time - self.last_shift_time)
 
         if delta_buckets:
             self.time_counts.rotate(-delta_buckets)
-            for i in xrange(1, delta_buckets + 1):
+            for i in range(1, delta_buckets + 1):
                 self.time_counts[-i] = 0
 
         self.last_shift_time = shift_time
         return shift_time
 
     def bucket_within_time(self, bucket, time_check):
-        return len(self.time_counts) - 1 - bucket < time_check.time_length / self.time_bucket_size
+        return len(self.time_counts) - 1 - bucket < time_check.time_length // self.time_bucket_size
 
     def clear_bucket_counts(self):
-        for i in xrange(self.bucket_count()):
+        for i in range(self.bucket_count()):
             self.time_counts[i] = 0
 
     def check_save_conditions(self):

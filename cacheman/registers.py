@@ -1,10 +1,18 @@
 import pickle
-import cPickle
+from six.moves import cPickle
+from six import iteritems
 import shutil
 import os
 import sys
 import psutil
 import csv
+
+if sys.version_info[0] == 2:
+    text_read_mode = 'rU'
+    text_write_mode = 'wb'
+else:
+    text_read_mode = 'r'
+    text_write_mode = 'w'
 
 def dict_loader(*arg, **kwargs):
     return {}
@@ -47,7 +55,7 @@ def _tmp_pid_extensions(pid=None):
     return extensions
 
 def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, seen_pids):
-    children = _exclude_zombie_procs([proc for proc in psutil.Process().children(recursive=False) 
+    children = _exclude_zombie_procs([proc for proc in psutil.Process().children(recursive=False)
             if proc.pid in seen_pids[cache_name]])
     cache_pids = set(child.pid for child in children)
     terminated_pids = seen_pids[cache_name] - cache_pids
@@ -61,9 +69,9 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
 
     try:
         fork_pid = os.fork()
-    except OSError, e:
-        print ("Warning, saving {} synchronously: {} ".format(cache_name, repr(e)) +
-            "-- you're out of memory or you might be out of shared memory (check kernel.shmmax)")
+    except OSError as e:
+        print(("Warning, saving {} synchronously: {} ".format(cache_name, repr(e)) +
+            "-- you're out of memory or you might be out of shared memory (check kernel.shmmax)"))
         if presaver:
             presaver(cache_name, contents, _tmp_pid_extensions())
         saver(cache_name, contents, _tmp_pid_extensions())
@@ -90,14 +98,14 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
                 # Avoid killing processes that have since died
                 alive = _exclude_zombie_procs(alive_and_undead)
                 for p in alive:
-                    print "Warning killing previous save for '{}' cache on pid {}".format(cache_name, p.pid)
+                    print("Warning killing previous save for '{}' cache on pid {}".format(cache_name, p.pid))
                     p.kill()
             saver(cache_name, contents, _tmp_pid_extensions(pid))
-        except Exception, e:
+        except Exception as e:
             if cleaner:
                 try: cleaner(cache_name, contents, _tmp_pid_extensions())
                 except: pass
-            print "Warning: ignored error in '{}' cache saver - {}".format(cache_name, repr(e))
+            print("Warning: ignored error in '{}' cache saver - {}".format(cache_name, repr(e)))
         finally:
             # Exit aggresively -- we don't want cleanup to occur
             os._exit(0)
@@ -122,6 +130,7 @@ def pickle_pre_saver(cache_dir, cache_name, contents, extensions):
         try:
             cPickle.dump(contents, pkl_file)
         except:
+            # We do this because older cPickle was incorrectly raising exceptions
             pickle.dump(contents, pkl_file)
 
 def pickle_mover(cache_dir, cache_name, contents, extensions):
@@ -153,7 +162,7 @@ def pickle_loader(cache_dir, cache_name):
                 try: contents = pickle.load(pkl_file)
                 except (IndexError, AttributeError): pass
                 if contents is None:
-                    raise exc_info[1], None, exc_info[2]
+                    raise exc_info[1].with_traceback(exc_info[2])
     except (IOError, EOFError):
         return None
     return contents
@@ -174,9 +183,9 @@ def csv_saver(cache_dir, cache_name, contents, row_builder=None):
 def csv_pre_saver(cache_dir, cache_name, contents, extensions, row_builder=None):
     ensure_directory(cache_dir)
     cache_path = generate_csv_path(cache_dir, cache_name)
-    with open('.'.join([cache_path] + extensions), 'wb') as csv_file:
+    with open('.'.join([cache_path] + extensions), text_write_mode) as csv_file:
         writer = csv.writer(csv_file, dialect='excel', quoting=csv.QUOTE_MINIMAL)
-        for key, value in contents.iteritems():
+        for key, value in iteritems(contents):
             writer.writerow(row_builder(key, value) if row_builder else [key, value])
 
 def csv_mover(cache_dir, cache_name, contents, extensions):
@@ -191,11 +200,12 @@ def csv_cleaner(cache_dir, cache_name, extensions):
 def csv_loader(cache_dir, cache_name, row_reader=None):
     contents = {}
     try:
-        with open(generate_csv_path(cache_dir, cache_name), 'rb') as csv_file:
+        with open(generate_csv_path(cache_dir, cache_name), text_read_mode) as csv_file:
             reader = csv.reader(csv_file, dialect='excel', quoting=csv.QUOTE_MINIMAL)
             for row in reader:
-                key, val = row_reader(row) if row_reader else (row[0], row[1])
-                contents[key] = val
+                if row:
+                    key, val = row_reader(row) if row_reader else (row[0], row[1])
+                    contents[key] = val
     except (IOError, EOFError):
         return None
     return contents

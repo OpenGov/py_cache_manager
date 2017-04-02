@@ -1,11 +1,11 @@
 # This import fixes sys.path issues
-import parentpath
+from . import parentpath
 
 import unittest
-from faketime import FakeTime
+from .faketime import FakeTime
 from datetime import datetime, timedelta
 from cacheman import autosync
-from common import CacheCommonAsserter
+from .common import CacheCommonAsserter
 
 class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
     def setUp(self):
@@ -22,7 +22,7 @@ class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
         CacheCommonAsserter.cleanup()
 
     def build_fast_sync_cache(self, cache_name):
-        return autosync.AutoSyncCache(cache_name, cache_manager=self.manager, 
+        return autosync.AutoSyncCache(cache_name, cache_manager=self.manager,
                 time_checks=[autosync.TimeCount(1, 2), autosync.TimeCount(5, 10)], time_bucket_size=1)
 
     def test_basic_cache_actions(self):
@@ -71,11 +71,11 @@ class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
 
         cache.invalidate_and_rebuild()
         self.faketime.incr_time(timedelta(seconds=2))
-        for count in xrange(10):
+        for count in range(10):
             cache[count] = count
         cache.load()
         # No save should have triggered save from second time window
-        self.assert_contents_equal(cache, dict((i, i) for i in xrange(10)))
+        self.assert_contents_equal(cache, dict((i, i) for i in range(10)))
 
     def test_out_of_window(self):
         cache_name = 'out_of_bounds'

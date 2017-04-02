@@ -1,12 +1,12 @@
 # This import fixes sys.path issues
-import parentpath
+from . import parentpath
 
 import copy
 import unittest
 import psutil
 import os
 from cacheman import registers
-from common import CacheCommonAsserter
+from .common import CacheCommonAsserter
 
 class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
     @classmethod

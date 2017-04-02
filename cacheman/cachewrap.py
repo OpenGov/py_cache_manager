@@ -1,4 +1,5 @@
 from collections import MutableMapping
+from past.builtins import basestring
 
 from .registers import *
 

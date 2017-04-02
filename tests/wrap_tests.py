@@ -1,13 +1,9 @@
 # This import fixes sys.path issues
-import parentpath
+from . import parentpath
 
-import os
-import copy
-import glob
 import unittest
-from cacheman import cacher
 from cacheman.cachewrap import CacheWrap, NonPersistentCache, PersistentCache
-from common import CacheCommonAsserter
+from .common import CacheCommonAsserter
 
 class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
     @classmethod
@@ -235,7 +231,7 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
     def test_pre_processor(self):
         cache_name = self.check_cache_gone('validation')
         cache = PersistentCache(cache_name, cache_manager=self.manager, contents={ 'foo': 'bar' },
-            pre_processor=lambda c: { 'foo2': c['foo'] })
+            pre_processor=lambda c: { 'foo2': c.get('foo', 'missing') })
         self.assert_contents_equal(cache, { 'foo': 'bar' })
         cache.save()
         # Preprocessor should have applied to save, but not cache
@@ -247,7 +243,7 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
     def test_post_processor(self):
         cache_name = self.check_cache_gone('validation')
         cache = PersistentCache(cache_name, cache_manager=self.manager, contents={ 'foo': 'bar' },
-            post_processor=lambda c: { 'foo2': c['foo'] })
+            post_processor=lambda c: { 'foo2': c.get('foo', 'missing') })
         self.assert_contents_equal(cache, { 'foo': 'bar' })
         cache.save()
         # Postprocessor should not have applied to save or cache

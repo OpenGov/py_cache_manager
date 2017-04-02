@@ -121,7 +121,7 @@ class CacheManager():
         del self.cache_by_name[cache_name]
 
     def deregister_all_caches(self):
-        for cache_name in self.cache_by_name.keys():
+        for cache_name in list(self.cache_by_name.keys()):
             self.deregister_cache(cache_name, False)
 
     def save_cache_contents(self, cache_name, apply_to_dependents=False):
