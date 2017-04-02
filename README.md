@@ -106,13 +106,13 @@ Below are some simple examples for how to use the repository.
 ### Setting cache directory
     from cacheman import cacher
 
-    manager = cacher.get_cache_manager()
     # Default cache directory is '/tmp/general_cacher' or 'user\appadata\local\temp\general_cache'
-    manager.cache_directory = 'secret/cache/location' # All pickle caches now save here
+    # All pickle caches now save to namespaced directories within the base_cache_directory directory
+    manager = cacher.get_cache_manager(base_cache_directory='secret/cache/location')
 
     cache = manager.register_cache('my_cache')
     cache['new'] = 'real' # Add something to the cache
-    cache.save('my_cache') # Will save contents to 'secret/cache/location/my_cache.pkl'
+    cache.save('my_cache') # Will save contents to 'secret/cache/location/general_cache/my_cache.pkl'
 
 ## Navigating the Repo
 ### cacheman

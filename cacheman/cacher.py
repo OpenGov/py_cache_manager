@@ -7,20 +7,20 @@ from .autosync import AutoSyncCache
 
 DEFAULT_CACHEMAN = 'general_cacher'
 
-def get_cache_manager(manager_name=None):
+def get_cache_manager(manager_name=None, base_cache_directory=None):
     if manager_name is None:
         # Don't grab this from default args in case someone changes DEFAULT_CACHEMAN
         manager_name = DEFAULT_CACHEMAN
     if manager_name not in _managers:
         # Need name argument, so can't use defaultdict easily
-        _managers[manager_name] = CacheManager(manager_name)
+        _managers[manager_name] = CacheManager(manager_name, base_cache_directory)
     return _managers[manager_name]
 _managers = {} # Labeled with leading underscore to trigger del before module cleanup
 
 class CacheManager():
-    def __init__(self, manager_name):
+    def __init__(self, manager_name, base_cache_directory=None):
         self.name = manager_name
-        self.cache_directory = os.path.join(tempfile.gettempdir(), self.name)
+        self.cache_directory = os.path.join(base_cache_directory or tempfile.gettempdir(), self.name)
         self.cache_by_name = {}
         self.async_pid_cache = defaultdict(set) # Used for async cache tracking
 

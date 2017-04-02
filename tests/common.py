@@ -7,7 +7,8 @@ from cacheman import cacher
 from cacheman.registers import generate_pickle_path, generate_csv_path
 
 class CacheCommonAsserter(object):
-    TEST_CACHE_DIR = os.path.join(os.path.dirname(__file__), 'test_data')
+    TEST_CACHE_BASE_DIR = os.path.dirname(__file__)
+    TEST_CACHE_DIR = os.path.join(TEST_CACHE_BASE_DIR, 'test_data')
 
     @classmethod
     def cleanup(cls):
@@ -18,8 +19,7 @@ class CacheCommonAsserter(object):
             os.remove(f)
 
     def setUp(self):
-        self.manager = cacher.CacheManager('self')
-        self.manager.cache_directory = CacheCommonAsserter.TEST_CACHE_DIR
+        self.manager = cacher.CacheManager('test_data', CacheCommonAsserter.TEST_CACHE_BASE_DIR)
 
     def tearDown(self):
         self.manager.delete_all_saved_cache_contents()
