@@ -229,7 +229,7 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
         self.assertDictEqual(dependent_cache.contents, {})
 
     def test_pre_processor(self):
-        cache_name = self.check_cache_gone('validation')
+        cache_name = self.check_cache_gone('pre_process')
         cache = PersistentCache(cache_name, cache_manager=self.manager, contents={ 'foo': 'bar' },
             pre_processor=lambda c: { 'foo2': c.get('foo', 'missing') })
         self.assert_contents_equal(cache, { 'foo': 'bar' })
@@ -241,7 +241,7 @@ class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
         self.assert_contents_equal(cache, { 'foo2': 'bar' })
 
     def test_post_processor(self):
-        cache_name = self.check_cache_gone('validation')
+        cache_name = self.check_cache_gone('post_process')
         cache = PersistentCache(cache_name, cache_manager=self.manager, contents={ 'foo': 'bar' },
             post_processor=lambda c: { 'foo2': c.get('foo', 'missing') })
         self.assert_contents_equal(cache, { 'foo': 'bar' })

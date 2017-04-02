@@ -5,6 +5,7 @@ import copy
 import unittest
 import psutil
 import os
+import random
 from cacheman import registers
 from .common import CacheCommonAsserter
 
@@ -14,9 +15,8 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         CacheCommonAsserter.cleanup()
 
     def register_foo_baz_bar(self, check_file=True):
-        cache_one_name = self.check_cache_gone('foo_bar') if check_file else 'foo_bar'
-        cache_two_name = self.check_cache_gone('baz_bar') if check_file else 'baz_bar'
-
+        cache_one_name = 'foo_bar_{}'.format(random.randrange(10000, 99999))
+        cache_two_name = 'foo_bar_{}'.format(random.randrange(10000, 99999))
         self.manager.register_cache(cache_one_name, { 'foo': 'bar' })
         self.manager.register_cache(cache_two_name, { 'baz': 'bar' })
 
@@ -369,9 +369,6 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assertFalse(self.manager.cache_registered(cache_one_name))
         self.assertFalse(self.manager.cache_registered(cache_two_name))
 
-        # Regegister so we clear out the files during cleanup
-        self.register_foo_baz_bar(False)
-
     def test_deregister_all(self):
         cache_one_name, cache_two_name = self.register_foo_baz_bar()
         self.manager.save_all_cache_contents()
@@ -381,9 +378,6 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.manager.deregister_all_caches()
         self.assertFalse(self.manager.cache_registered(cache_one_name))
         self.assertFalse(self.manager.cache_registered(cache_two_name))
-
-        # Regegister so we clear out the files during cleanup
-        self.register_foo_baz_bar(False)
 
     def test_chain_registrated_save(self):
         cache_one_name, cache_two_name = self.register_foo_baz_bar()

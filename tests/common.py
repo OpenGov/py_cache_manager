@@ -3,6 +3,7 @@ from . import parentpath
 
 import os
 import glob
+import psutil
 from cacheman import cacher
 from cacheman.registers import generate_pickle_path, generate_csv_path
 
@@ -13,6 +14,9 @@ class CacheCommonAsserter(object):
     @classmethod
     def cleanup(cls):
         # Cleanup any left-over failed content from last test run
+        for proc in psutil.Process().children(recursive=False):
+            try: os.waitpid(proc.pid, 0)
+            except OSError: pass
         for f in glob.glob(os.path.join(CacheCommonAsserter.TEST_CACHE_DIR, '*.pkl*')):
             os.remove(f)
         for f in glob.glob(os.path.join(CacheCommonAsserter.TEST_CACHE_DIR, '*.csv*')):
