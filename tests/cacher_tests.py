@@ -193,7 +193,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assert_contents_equal(self.manager.retrieve_cache(cache_name), { 'foo': 'bar', 'baz': 'bar' })
 
     def test_loader(self):
-        cache_name = 'foo_bar'
+        cache_name = 'foo_bar_loader'
         cache = self.manager.register_loader(cache_name, lambda *args: { 'foo': 'bar' })
         cache.load()
 
@@ -209,7 +209,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assert_contents_equal(self.manager.reload_cache(cache_name), { 'foo': 'bar' })
 
     def test_builder(self):
-        cache_name = 'foo_bar'
+        cache_name = 'foo_bar_builder'
         cache = self.manager.register_builder(cache_name, lambda *args: { 'foo': 'bar' })
         self.manager.invalidate_and_rebuild_cache(cache_name)
 
@@ -224,7 +224,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assert_contents_equal(self.manager.reload_cache(cache_name), { 'foo': 'bar' })
 
     def test_saver(self):
-        cache_name = 'foo_bar'
+        cache_name = 'foo_bar_saver'
         self.cache_store = {}
         def saver(cache_name, contents): self.cache_store = copy.copy(contents)
 
@@ -237,7 +237,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assertDictEqual(self.cache_store, { 'foo': 'bar' })
 
     def test_deleter(self):
-        cache_name = 'foo_bar'
+        cache_name = 'foo_bar_deleter'
         self.deleted_cache = {}
         def deleter(cache_name):
             self.deleted_cache = self.manager.retrieve_cache(cache_name)
@@ -261,7 +261,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assertIsNone(self.manager.reload_cache(cache_name).contents)
 
     def test_register_post_processor(self):
-        cache_name = self.check_cache_gone('foo_bar')
+        cache_name = self.check_cache_gone('foo_bar_post_proc')
         def post_proc(contents):
             contents['baz'] = 'bar'
             return contents
@@ -284,7 +284,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assert_contents_equal(self.manager.invalidate_and_rebuild_cache(cache_name), { 'baz': 'bar' })
 
     def test_register_pre_processor(self):
-        cache_name = self.check_cache_gone('foo_bar')
+        cache_name = self.check_cache_gone('foo_bar_pre_proc')
         def pre_proc(contents):
             contents['baz'] = 'bar'
             return contents
@@ -305,7 +305,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assert_contents_equal(self.manager.retrieve_cache(cache_name), { 'baz': 'bar' })
 
     def test_register_validator(self):
-        cache_name = self.check_cache_gone('foo_bar')
+        cache_name = self.check_cache_gone('foo_bar_validator')
         self.manager.register_validator(cache_name, lambda c: 'foo' in c)
 
         cache = self.manager.retrieve_cache(cache_name)
@@ -392,11 +392,11 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assert_contents_equal(self.manager.reload_cache(cache_three_name), { 'grand': 'child' })
 
     def test_non_persistent_register(self):
-        cache_name = self.check_cache_gone('foo_bar')
+        cache_name = self.check_cache_gone('foo_bar_non_pers')
         cache = self.manager.register_custom_cache(cache_name, { 'foo': 'bar' }, persistent=False)
         self.manager.save_cache_contents(cache_name)
         # No file should be created
-        cache_name = self.check_cache_gone('foo_bar')
+        cache_name = self.check_cache_gone('foo_bar_non_pers')
 
         cache['baz'] = 'bar'
         self.assert_contents_equal(self.manager.retrieve_cache(cache_name), { 'foo': 'bar', 'baz': 'bar' })
@@ -414,7 +414,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
             child.wait(timeout=10)
 
     def test_async_saver(self):
-        cache_name = self.check_cache_gone('foo_bar')
+        cache_name = self.check_cache_gone('foo_bar_async_saver')
         cache = self.manager.register_custom_cache(cache_name, { 'foo': 'bar' }, async=True)
         self.assertTrue(cache.async_saver)
         self.manager.save_cache_contents(cache_name)
@@ -430,7 +430,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.assert_contents_equal(cache, { 'foo': 'bar', 'baz': 'bar' })
 
     def test_async_saver_queue(self):
-        cache_name = self.check_cache_gone('foo_bar')
+        cache_name = self.check_cache_gone('foo_bar_async_queue')
         cache = self.manager.register_custom_cache(cache_name, { 'foo': 'bar' }, async=True)
         self.assertTrue(cache.async_saver)
         for _ in range(50):
