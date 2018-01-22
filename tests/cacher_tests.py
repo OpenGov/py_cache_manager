@@ -410,8 +410,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
 
     def wait_async_complete(self):
         parent = psutil.Process(os.getpid())
-        for child in parent.children(recursive=False):
-            child.wait(timeout=30)
+        psutil.wait_procs(parent.children(recursive=False), timeout=10)
 
     def test_async_saver(self):
         cache_name = self.check_cache_gone('foo_bar_async_saver')
