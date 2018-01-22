@@ -7,6 +7,8 @@ import sys
 import psutil
 import csv
 
+from .utils import random_name
+
 if sys.version_info[0] == 2:
     text_read_mode = 'rU'
     text_write_mode = 'wb'
@@ -111,15 +113,16 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
             os._exit(0)
 
 def pickle_saver(cache_dir, cache_name, contents):
+    tmp_exts = ['tmp', random_name()]
     try:
         try:
-            pickle_pre_saver(cache_dir, cache_name, contents, ['tmp'])
-            pickle_mover(cache_dir, cache_name, contents, ['tmp'])
+            pickle_pre_saver(cache_dir, cache_name, contents, tmp_exts)
+            pickle_mover(cache_dir, cache_name, contents, tmp_exts)
         except (IOError, EOFError):
             # TODO log real exception
             raise IOError('Unable to save {} cache'.format(cache_name))
     except:
-        try: pickle_cleaner(cache_dir, cache_name, ['tmp'])
+        try: pickle_cleaner(cache_dir, cache_name, tmp_exts)
         except: pass
         raise
 

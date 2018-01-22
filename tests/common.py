@@ -9,12 +9,13 @@ import random
 import psutil
 import tempfile
 from cacheman import cacher
+from cacheman.utils import random_name
 from cacheman.registers import generate_pickle_path, generate_csv_path
 
 class CacheCommonAsserter(object):
     def __init__(self):
         self.test_cache_base_dir = os.path.join(tempfile.gettempdir(), 'test_data')
-        self.test_cache_key = ''.join(random.choice(string.ascii_uppercase) for _ in range(18))
+        self.test_cache_key = random_name()
         self.test_cache_dir = os.path.join(self.test_cache_base_dir, self.test_cache_key)
 
     def cleanup(self):
