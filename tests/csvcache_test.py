@@ -9,6 +9,10 @@ from .common import CacheCommonAsserter
 from datetime import datetime, timedelta
 
 class CSVCacheTest(CacheCommonAsserter, unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        CacheCommonAsserter.__init__(self)
+        unittest.TestCase.__init__(self, *args, **kwargs)
+
     def setUp(self):
         CacheCommonAsserter.setUp(self)
         self.faketime = FakeTime()
@@ -21,10 +25,6 @@ class CSVCacheTest(CacheCommonAsserter, unittest.TestCase):
     def build_fast_sync_cache(self, cache_name):
         return AutoSyncCSVCache(cache_name, cache_manager=self.manager,
                 time_checks=[autosync.TimeCount(1, 2), autosync.TimeCount(5, 10)], time_bucket_size=1)
-
-    @classmethod
-    def setUpClass(cls):
-        CacheCommonAsserter.cleanup()
 
     def test_basic_csv_cache(self):
         cache_name = self.check_cache_gone('csvcache', csv_path=True)
