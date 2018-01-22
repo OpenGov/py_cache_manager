@@ -6,6 +6,7 @@ import os
 import sys
 import psutil
 import csv
+import traceback
 
 from .utils import random_name
 
@@ -51,7 +52,7 @@ def _exclude_zombie_procs(procs):
     return alive_procs
 
 def _tmp_pid_extensions(pid=None):
-    extensions = ['tmp']
+    extensions = ['tmp', random_name()]
     if pid:
         extensions.append(str(pid))
     return extensions
@@ -119,7 +120,7 @@ def pickle_saver(cache_dir, cache_name, contents):
             pickle_pre_saver(cache_dir, cache_name, contents, tmp_exts)
             pickle_mover(cache_dir, cache_name, contents, tmp_exts)
         except (IOError, EOFError):
-            # TODO log real exception
+            traceback.print_exc()
             raise IOError('Unable to save {} cache'.format(cache_name))
     except:
         try: pickle_cleaner(cache_dir, cache_name, tmp_exts)
@@ -171,15 +172,16 @@ def pickle_loader(cache_dir, cache_name):
     return contents
 
 def csv_saver(cache_dir, cache_name, contents, row_builder=None):
+    tmp_exts = ['tmp', random_name()]
     try:
         try:
-            csv_pre_saver(cache_dir, cache_name, contents, ['tmp'], row_builder)
-            csv_mover(cache_dir, cache_name, contents, ['tmp'])
+            csv_pre_saver(cache_dir, cache_name, contents, tmp_exts, row_builder)
+            csv_mover(cache_dir, cache_name, contents, tmp_exts)
         except (IOError, EOFError):
-            # TODO log real exception
+            traceback.print_exc()
             raise IOError('Unable to save {} cache'.format(cache_name))
     except:
-        try: csv_cleaner(cache_dir, cache_name, ['tmp'])
+        try: csv_cleaner(cache_dir, cache_name, tmp_exts)
         except: pass
         raise
 
