@@ -105,6 +105,7 @@ class CacheWrap(MutableMapping, object):
         return pickle_loader(self.manager.cache_directory, self.name)
 
     def _manager_pickle_saver(self, name, contents):
+        print(self.manager.cache_directory)
         return pickle_saver(self.manager.cache_directory, name, contents)
 
     def _manager_pickle_async_presaver(self, name, contents, extensions):

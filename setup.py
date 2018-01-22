@@ -35,13 +35,13 @@ def read_md(fname):
     else:
         return read(fname)
 
-version = '2.0.7'
+version = '2.0.8'
 required = [req.strip() for req in read('requirements.txt').splitlines() if req.strip()]
 setup(
     name='CacheMan',
     version=version,
     author='Matthew Seal',
-    author_email='mseal@opengov.com',
+    author_email='mseal007@gmail.com',
     description='A dependent cache manager',
     long_description=read_md('README.md'),
     install_requires=required,

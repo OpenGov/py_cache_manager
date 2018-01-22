@@ -2,8 +2,10 @@
 from . import parentpath
 
 import os
+import sys
 import glob
 import psutil
+import atexit
 from cacheman import cacher
 from cacheman.registers import generate_pickle_path, generate_csv_path
 
@@ -12,7 +14,10 @@ class CacheCommonAsserter(object):
     TEST_CACHE_DIR = os.path.join(TEST_CACHE_BASE_DIR, 'test_data')
 
     @classmethod
-    def cleanup(cls):
+    def cleanup(cls, sys_modules=None):
+        if sys_modules:
+            sys.modules.update(sys_modules)
+
         # Cleanup any left-over failed content from last test run
         for proc in psutil.Process().children(recursive=False):
             try: os.waitpid(proc.pid, 0)
@@ -51,3 +56,5 @@ class CacheCommonAsserter(object):
 
     def check_cache_gone(self, cache_name, csv_path=False):
         return self.check_cache(cache_name, False, csv_path)
+
+atexit.register(CacheCommonAsserter.cleanup, sys.modules.copy())
