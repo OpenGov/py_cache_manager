@@ -6,9 +6,9 @@ from cacheman.cachewrap import CacheWrap, NonPersistentCache, PersistentCache
 from .common import CacheCommonAsserter
 
 class CacheWrapTest(CacheCommonAsserter, unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        CacheCommonAsserter.cleanup()
+    def __init__(self, *args, **kwargs):
+        CacheCommonAsserter.__init__(self)
+        unittest.TestCase.__init__(self, *args, **kwargs)
 
     def assert_registrations_blank(self, cache, registration_names):
         for reg in registration_names:

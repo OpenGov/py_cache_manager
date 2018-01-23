@@ -6,6 +6,9 @@ import os
 import sys
 import psutil
 import csv
+import traceback
+
+from .utils import random_name
 
 if sys.version_info[0] == 2:
     text_read_mode = 'rU'
@@ -49,7 +52,7 @@ def _exclude_zombie_procs(procs):
     return alive_procs
 
 def _tmp_pid_extensions(pid=None):
-    extensions = ['tmp']
+    extensions = ['tmp', random_name()]
     if pid:
         extensions.append(str(pid))
     return extensions
@@ -67,20 +70,21 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
             cleaner(cache_name, _tmp_pid_extensions(pid))
     seen_pids[cache_name] = cache_pids
 
+    exts = _tmp_pid_extensions()
     try:
         fork_pid = os.fork()
     except OSError as e:
         print(("Warning, saving {} synchronously: {} ".format(cache_name, repr(e)) +
             "-- you're out of memory or you might be out of shared memory (check kernel.shmmax)"))
         if presaver:
-            presaver(cache_name, contents, _tmp_pid_extensions())
-        saver(cache_name, contents, _tmp_pid_extensions())
+            presaver(cache_name, contents, exts)
+        saver(cache_name, contents, exts)
         return
     except AttributeError:
         # Windows has no fork... TODO make windows async saver
         if presaver:
-            presaver(cache_name, contents, _tmp_pid_extensions())
-        saver(cache_name, contents, _tmp_pid_extensions())
+            presaver(cache_name, contents, exts)
+        saver(cache_name, contents, exts)
         return
 
     if fork_pid != 0:
@@ -88,8 +92,12 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
     else:
         try:
             pid = os.getpid()
+            pid_exts = _tmp_pid_extensions(pid)
+        except Exception as e:
+            print("Warning: ignored error in '{}' cache saver - {}".format(cache_name, repr(e)))
+        try:
             if presaver:
-                presaver(cache_name, contents, _tmp_pid_extensions(pid))
+                presaver(cache_name, contents, pid_exts)
 
             # Refilter our zombies
             children = _exclude_zombie_procs(children)
@@ -100,10 +108,10 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
                 for p in alive:
                     print("Warning killing previous save for '{}' cache on pid {}".format(cache_name, p.pid))
                     p.kill()
-            saver(cache_name, contents, _tmp_pid_extensions(pid))
+            saver(cache_name, contents, pid_exts)
         except Exception as e:
             if cleaner:
-                try: cleaner(cache_name, contents, _tmp_pid_extensions())
+                try: cleaner(cache_name, contents, pid_exts)
                 except: pass
             print("Warning: ignored error in '{}' cache saver - {}".format(cache_name, repr(e)))
         finally:
@@ -111,15 +119,16 @@ def fork_content_save(cache_name, contents, presaver, saver, cleaner, timeout, s
             os._exit(0)
 
 def pickle_saver(cache_dir, cache_name, contents):
+    tmp_exts = ['tmp', random_name()]
     try:
         try:
-            pickle_pre_saver(cache_dir, cache_name, contents, ['tmp'])
-            pickle_mover(cache_dir, cache_name, contents, ['tmp'])
+            pickle_pre_saver(cache_dir, cache_name, contents, tmp_exts)
+            pickle_mover(cache_dir, cache_name, contents, tmp_exts)
         except (IOError, EOFError):
-            # TODO log real exception
+            traceback.print_exc()
             raise IOError('Unable to save {} cache'.format(cache_name))
     except:
-        try: pickle_cleaner(cache_dir, cache_name, ['tmp'])
+        try: pickle_cleaner(cache_dir, cache_name, tmp_exts)
         except: pass
         raise
 
@@ -168,15 +177,16 @@ def pickle_loader(cache_dir, cache_name):
     return contents
 
 def csv_saver(cache_dir, cache_name, contents, row_builder=None):
+    tmp_exts = ['tmp', random_name()]
     try:
         try:
-            csv_pre_saver(cache_dir, cache_name, contents, ['tmp'], row_builder)
-            csv_mover(cache_dir, cache_name, contents, ['tmp'])
+            csv_pre_saver(cache_dir, cache_name, contents, tmp_exts, row_builder)
+            csv_mover(cache_dir, cache_name, contents, tmp_exts)
         except (IOError, EOFError):
-            # TODO log real exception
+            traceback.print_exc()
             raise IOError('Unable to save {} cache'.format(cache_name))
     except:
-        try: csv_cleaner(cache_dir, cache_name, ['tmp'])
+        try: csv_cleaner(cache_dir, cache_name, tmp_exts)
         except: pass
         raise
 

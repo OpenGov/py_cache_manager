@@ -8,6 +8,10 @@ from cacheman import autosync
 from .common import CacheCommonAsserter
 
 class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        CacheCommonAsserter.__init__(self)
+        unittest.TestCase.__init__(self, *args, **kwargs)
+
     def setUp(self):
         CacheCommonAsserter.setUp(self)
         self.faketime = FakeTime()
@@ -16,10 +20,6 @@ class AutoSyncCacheTest(CacheCommonAsserter, unittest.TestCase):
     def tearDown(self):
         CacheCommonAsserter.tearDown(self)
         autosync.datetime = datetime
-
-    @classmethod
-    def setUpClass(cls):
-        CacheCommonAsserter.cleanup()
 
     def build_fast_sync_cache(self, cache_name):
         return autosync.AutoSyncCache(cache_name, cache_manager=self.manager,

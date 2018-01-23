@@ -10,9 +10,9 @@ from cacheman import registers
 from .common import CacheCommonAsserter
 
 class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        CacheCommonAsserter.cleanup()
+    def __init__(self, *args, **kwargs):
+        CacheCommonAsserter.__init__(self)
+        unittest.TestCase.__init__(self, *args, **kwargs)
 
     def register_foo_baz_bar(self, check_file=True):
         cache_one_name = 'foo_bar_{}'.format(random.randrange(10000, 99999))
@@ -241,7 +241,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
         self.deleted_cache = {}
         def deleter(cache_name):
             self.deleted_cache = self.manager.retrieve_cache(cache_name)
-            registers.pickle_deleter(CacheCommonAsserter.TEST_CACHE_DIR, cache_name)
+            registers.pickle_deleter(self.test_cache_dir, cache_name)
 
         self.manager.register_deleter(cache_name, deleter)
         cache = self.manager.retrieve_cache(cache_name)
@@ -410,8 +410,7 @@ class CacheManagerTest(CacheCommonAsserter, unittest.TestCase):
 
     def wait_async_complete(self):
         parent = psutil.Process(os.getpid())
-        for child in parent.children(recursive=False):
-            child.wait(timeout=10)
+        psutil.wait_procs(parent.children(recursive=True), timeout=30)
 
     def test_async_saver(self):
         cache_name = self.check_cache_gone('foo_bar_async_saver')
